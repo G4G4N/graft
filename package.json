@@ -1,0 +1,45 @@
+{
+  "name": "graft-vcs",
+  "version": "0.2.0",
+  "description": "Agent-first, server-side source control: server-side commits/rebases, changesets + derived data, sparse on-demand workspaces, and an MCP plugin.",
+  "type": "module",
+  "license": "MIT",
+  "author": "G4G4N",
+  "homepage": "https://graft-vcs.pages.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/G4G4N/graft.git"
+  },
+  "bugs": {
+    "url": "https://github.com/G4G4N/graft/issues"
+  },
+  "engines": {
+    "node": ">=22.5"
+  },
+  "bin": {
+    "graft": "bin/graft.js",
+    "graft-server": "bin/graft-server.js",
+    "graft-mcp": "bin/graft-mcp.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json && npm run bundle:mcp",
+    "bundle:mcp": "esbuild dist/src/mcp/server.js --bundle --platform=node --format=esm --target=node18 --minify --legal-comments=none --outfile=plugin/dist/graft-mcp.js --banner:js=\"import { createRequire } from 'module'; const require = createRequire(import.meta.url);\"",
+    "start": "node bin/graft-server.js",
+    "test": "tsc -p tsconfig.json && node --experimental-sqlite --no-warnings --test --test-timeout=60000 dist/test/*.test.js",
+    "bench": "node --experimental-sqlite --no-warnings dist/bench/bench.js",
+    "release": "node scripts/release.mjs",
+    "site:build": "node site/build.mjs",
+    "site:deploy": "node site/build.mjs && node site/deploy.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.20.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "esbuild": "^0.25.0",
+    "marked": "^15.0.12",
+    "typescript": "^5.6.0",
+    "wrangler": "^4.161.0"
+  }
+}

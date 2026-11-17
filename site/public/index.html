@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Graft — source control for agent swarms</title>
+<meta name="description" content="Graft moves commits, rebases and merges to the server, so many AI agents can land changes on one branch in milliseconds. Open results from swarms of up to {{MAX_AGENTS}} agents.">
+<meta name="theme-color" content="#f4f6f3" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0b100d" media="(prefers-color-scheme: dark)">
+<meta property="og:title" content="Graft — source control for agent swarms">
+<meta property="og:description" content="{{G_P50}} median land with {{MAX_AGENTS}} agents on one branch. Git: {{X_P50}}.">
+<meta property="og:type" content="website">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="/assets/site.css?v={{VERSION}}">
+</head>
+<body>
+{{HEADER}}
+
+<main>
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <div class="eyebrow">Graft v{{VERSION}} · open results</div>
+      <h1>Source control for <em>agent swarms</em></h1>
+      <p class="lede">Graft moves commits, rebases and merges to the server. An agent reads, writes and lands a change in one call: no clone, no pull, no push. With {{MAX_AGENTS}} agents on one branch, the median change landed in <strong>{{G_P50}}</strong>. Through Git it took <strong>{{X_P50}}</strong>.</p>
+      <div class="ctas">
+        <a class="btn primary" href="/report/">Read the report</a>
+        <a class="btn" href="https://github.com/G4G4N/graft" rel="noopener">View source</a>
+        <a class="btn" href="/docs/deploy/">Deploy your own</a>
+      </div>
+    </div>
+
+    <div class="race" id="race" aria-label="Replay of {{TL_AGENTS}} agents building the same web app through Graft and through Git">
+      <div class="race-top">
+        <span class="title">replay · {{TL_AGENTS}} agents · same app</span>
+        <span class="clock" id="race-clock" aria-live="off">t = 0.0 s</span>
+        <span class="race-ctl">
+          <button type="button" id="race-replay">replay</button>
+          <button type="button" id="race-speed" aria-pressed="false" title="Play eight times faster">8×</button>
+        </span>
+      </div>
+      <div class="track">
+        <div class="track-head"><span class="dot" style="background:var(--graft)"></span><span class="name">graft</span><span class="done" id="done-graft" hidden></span><span class="count" id="count-graft">0 / {{TL_COMMITS}} landed</span></div>
+        <canvas id="lane-graft" width="600" height="132"></canvas>
+      </div>
+      <div class="track">
+        <div class="track-head"><span class="dot" style="background:var(--git)"></span><span class="name">git</span><span class="done" id="done-git" hidden></span><span class="count" id="count-git">0 / {{TL_COMMITS}} landed</span></div>
+        <canvas id="lane-git" width="600" height="132"></canvas>
+      </div>
+      <p class="race-cap">Recorded run, played in real time. Each row is an agent. Gray is thinking; color is time spent in source control: <span style="color:var(--op-commit)">■</span> commit/land <span style="color:var(--op-push)">■</span> push <span style="color:var(--op-rebase)">■</span> pull --rebase <span style="color:var(--op-reset)">■</span> conflict recovery.</p>
+    </div>
+  </div>
+</section>
+
+<section class="band" style="padding-top:20px">
+  <div class="wrap">
+    <div class="stats">
+      <div class="stat"><div class="v">{{G_P50}}</div><div class="k">median time to land a change, Graft, {{MAX_AGENTS}} agents</div></div>
+      <div class="stat"><div class="v">{{WALL_RATIO}}<small>×</small></div><div class="k">faster to finish the whole app than Git ({{G_WALL}} vs {{X_WALL}})</div></div>
+      <div class="stat"><div class="v">{{CMD_RATIO}}<small>×</small></div><div class="k">fewer source-control commands for real Claude agents</div></div>
+      <div class="stat"><div class="v">0</div><div class="k">lost updates across {{VERIFIED}} finished apps, all checked</div></div>
+    </div>
+  </div>
+</section>
+
+<section class="band" id="how">
+  <div class="wrap">
+    <div class="band-head">
+      <div><div class="eyebrow">How it works</div><h2>One request instead of a retry loop</h2></div>
+      <p class="lede">Git assumes every client keeps a full copy and works offline. Agents are always online and land small changes, many at once. Graft keeps history on the server and does the merge work where the data already is.</p>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="n">01 · READ</div>
+        <h3>Read at an exact revision</h3>
+        <p>Agents list, search and read files over MCP. Every answer names the changeset it came from. Nothing is cloned.</p>
+<pre><code><span class="c-k">graft_read_file</span> path=<span class="c-s">"app.js"</span>
+<span class="c-c">@ 3f9c1e0a2b77 app.js</span></code></pre>
+      </div>
+      <div class="step">
+        <div class="n">02 · SEND</div>
+        <h3>Send the change and its base</h3>
+        <p>One call carries the revision the agent read and its edits: whole files, exact string replacements, moves or deletes.</p>
+<pre><code><span class="c-k">graft_commit</span> base=<span class="c-s">"3f9c1e0a2b77"</span>
+  edits: <span class="c-s">"// routes"</span> → <span class="c-s">"…"</span></code></pre>
+      </div>
+      <div class="step">
+        <div class="n">03 · LAND</div>
+        <h3>The server lands it</h3>
+        <p>If main moved, the server rebases the change in memory with a three-way merge and swaps the branch pointer. Only a real textual conflict comes back.</p>
+<pre><code><span class="c-c">Landed on main: 8be21c… </span>
+<span class="c-c">(auto-rebased from 51aa9e…)</span></code></pre>
+      </div>
+    </div>
+
+    <figure class="diagram">
+      <div class="scroll">
+      <svg viewBox="0 0 1000 300" role="img" aria-label="A git agent repeats pull, commit and push in a loop that crosses to the remote every time it loses a race. A graft agent sends one request; the retry loop runs inside the server.">
+        <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker></defs>
+        <g font-family="Inter, system-ui, sans-serif" font-size="13" fill="currentColor">
+          <text x="20" y="28" font-weight="700" fill="var(--git)">git agent</text>
+          <text x="104" y="28" fill="var(--muted)" font-size="12.5">every step is a git process; every lost race goes around again</text>
+          <g>
+            <rect x="20" y="52" width="140" height="44" rx="9" fill="none" stroke="currentColor" stroke-opacity=".45"/><text x="90" y="79" text-anchor="middle">pull --rebase</text>
+            <rect x="196" y="52" width="110" height="44" rx="9" fill="none" stroke="currentColor" stroke-opacity=".45"/><text x="251" y="79" text-anchor="middle">edit</text>
+            <rect x="342" y="52" width="130" height="44" rx="9" fill="none" stroke="currentColor" stroke-opacity=".45"/><text x="407" y="79" text-anchor="middle">add + commit</text>
+            <rect x="508" y="52" width="110" height="44" rx="9" fill="none" stroke="var(--git)" stroke-width="2"/><text x="563" y="79" text-anchor="middle" font-weight="600">push</text>
+            <rect x="842" y="52" width="138" height="44" rx="9" fill="var(--sunken)" stroke="currentColor" stroke-opacity=".3"/><text x="911" y="79" text-anchor="middle" font-weight="600">landed</text>
+            <line x1="160" y1="74" x2="192" y2="74" stroke="currentColor" stroke-opacity=".6" marker-end="url(#ar)"/>
+            <line x1="306" y1="74" x2="338" y2="74" stroke="currentColor" stroke-opacity=".6" marker-end="url(#ar)"/>
+            <line x1="472" y1="74" x2="504" y2="74" stroke="currentColor" stroke-opacity=".6" marker-end="url(#ar)"/>
+            <line x1="618" y1="74" x2="838" y2="74" stroke="currentColor" stroke-opacity=".6" marker-end="url(#ar)"/>
+            <text x="728" y="66" text-anchor="middle" font-size="12" fill="var(--muted)">accepted</text>
+            <path d="M563 96 C 563 136, 90 136, 90 100" fill="none" stroke="var(--git)" stroke-dasharray="6 4" marker-end="url(#ar)" style="color:var(--git)"/>
+            <text x="326" y="146" text-anchor="middle" font-size="12" fill="var(--git)">rejected: another agent landed first → rebase locally, maybe resolve a conflict, push again</text>
+          </g>
+          <line x1="20" y1="172" x2="980" y2="172" stroke="currentColor" stroke-opacity=".12"/>
+          <text x="20" y="204" font-weight="700" fill="var(--graft)">graft agent</text>
+          <text x="112" y="204" fill="var(--muted)" font-size="12.5">one request; the retry loop runs inside the server</text>
+          <g>
+            <rect x="20" y="226" width="140" height="44" rx="9" fill="none" stroke="currentColor" stroke-opacity=".45"/><text x="90" y="253" text-anchor="middle">read @ C</text>
+            <rect x="196" y="226" width="110" height="44" rx="9" fill="none" stroke="currentColor" stroke-opacity=".45"/><text x="251" y="253" text-anchor="middle">edit</text>
+            <rect x="342" y="226" width="130" height="44" rx="9" fill="none" stroke="var(--graft)" stroke-width="2"/><text x="407" y="253" text-anchor="middle" font-weight="600">graft_commit</text>
+            <rect x="508" y="216" width="300" height="64" rx="11" fill="none" stroke="var(--graft)" stroke-dasharray="5 4" stroke-opacity=".7"/>
+            <text x="658" y="236" text-anchor="middle" font-size="11.5" fill="var(--graft-ink)" font-weight="600">server, in memory</text>
+            <text x="590" y="262" text-anchor="middle" font-size="12.5">rebase + merge</text>
+            <text x="735" y="262" text-anchor="middle" font-size="12.5">swap ref (CAS)</text>
+            <line x1="638" y1="258" x2="670" y2="258" stroke="currentColor" stroke-opacity=".6" marker-end="url(#ar)"/>
+            <path d="M735 270 C 735 292, 590 292, 590 274" fill="none" stroke="var(--graft)" stroke-dasharray="3 3" marker-end="url(#ar)" style="color:var(--graft)"/>
+            <rect x="842" y="226" width="138" height="44" rx="9" fill="var(--sunken)" stroke="currentColor" stroke-opacity=".3"/><text x="911" y="253" text-anchor="middle" font-weight="600">landed</text>
+            <line x1="160" y1="248" x2="192" y2="248" stroke="currentColor" stroke-opacity=".6" marker-end="url(#ar)"/>
+            <line x1="306" y1="248" x2="338" y2="248" stroke="currentColor" stroke-opacity=".6" marker-end="url(#ar)"/>
+            <line x1="472" y1="248" x2="504" y2="248" stroke="var(--graft)" stroke-width="1.6" marker-end="url(#ar)" style="color:var(--graft)"/>
+            <line x1="808" y1="248" x2="838" y2="248" stroke="currentColor" stroke-opacity=".6" marker-end="url(#ar)"/>
+          </g>
+        </g>
+      </svg>
+      </div>
+      <figcaption>Where the retry loop runs is the whole difference. A lost race costs a Git agent another pull, rebase and push. It costs Graft one in-memory rebase.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="band" id="features">
+  <div class="wrap">
+    <div class="band-head">
+      <div><div class="eyebrow">What's in the box</div><h2>Everything an agent team needs</h2></div>
+      <p class="lede">One container for the server. One file for the MCP plugin. A CLI for agents that need real files to run tests.</p>
+    </div>
+    <div class="features">
+      <div class="feature"><h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="5" r="2.5"/><circle cx="6" cy="19" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="M12 7.5v4.5M12 12l-5 5M12 12l5 5"/></svg>MCP plugin</h3><p>13 tools for Claude Code and any MCP client: read, search, find, commit-and-land, diff, log, blame, branches. Plus a skill that teaches the loop.</p></div>
+      <div class="feature"><h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 6h16M4 12h10M4 18h6"/></svg>Lock-free landing</h3><p>Branches move only by compare-and-swap on one row. No merge queue, no global lock. Lost races are retried on the server.</p></div>
+      <div class="feature"><h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 9h8M8 13h5"/></svg>Small changesets</h3><p>A commit stores only the paths it changed. Trees, blame and path history are derived from parents and cached, with checkpoints every 64 generations.</p></div>
+      <div class="feature"><h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 12l9 4 9-4M3 17l9 4 9-4"/></svg>Sparse workspaces</h3><p><code>graft clone --sparse src/</code> fetches only what you ask for. Every workspace on a machine shares one content-addressed cache.</p></div>
+      <div class="feature"><h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6l8-3z"/><path d="M9 12l2 2 4-4"/></svg>Secure by default</h3><p>Loopback-only until you set a token. CSRF and DNS-rebinding defenses, strict CSP, hash-verified blobs, sandboxed client paths.</p></div>
+      <div class="feature"><h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M12 18v3"/></svg>Web viewer</h3><p>Live history, changeset diffs, a file browser with blame, and code search for the people watching the agents.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="band" id="results">
+  <div class="wrap">
+    <div class="band-head">
+      <div><div class="eyebrow">Results</div><h2>Measured, not promised</h2></div>
+      <p class="lede">The same workload ran through three backends at 8, 16, 32 and {{MAX_AGENTS}} agents, then {{REAL_AGENTS}} real Claude agents built the same pages in two teams. Every finished app was checked for lost work.</p>
+    </div>
+    <div class="results-grid">
+      <div class="panel">
+        <h3>Median time from "ready to commit" to "on main"</h3>
+        <div class="legend"><span><i style="background:var(--graft)"></i>graft (MCP / API)</span><span><i style="background:var(--cli)"></i>graft CLI</span><span><i style="background:var(--git)"></i>git</span></div>
+        <div class="chart" id="chart-p50">{{CHART_P50}}</div>
+        <p class="cap">Both axes are linear. Graft's line sits on the floor because its medians are {{G_P50_RANGE}}: too small to see next to Git's seconds. Hover a point for exact values. One Mac, no network, which favors Git.</p>
+      </div>
+      <div class="panel">
+        <h3>Real Claude agents, {{REAL_PER_TEAM}} per team</h3>
+        <p class="muted" style="margin:6px 0 0;font-size:15px">Same model, same {{REAL_PER_TEAM}} pages, same instructions. Only the source-control loop differed.</p>
+        <div class="kv">
+          <span class="h"></span><span class="h" style="text-align:right;color:var(--git)">git</span><span class="h" style="text-align:right;color:var(--graft-ink)">graft</span>
+          <span>Commands run</span><span class="num">{{R_X_OPS}}</span><span class="num">{{R_G_OPS}}</span>
+          <span>Time in source control</span><span class="num">{{R_X_VCS}}</span><span class="num">{{R_G_VCS}}</span>
+          <span>Mean time per agent</span><span class="num">{{R_X_RUN}}</span><span class="num">{{R_G_RUN}}</span>
+          <span>Pushes rejected</span><span class="num">{{R_X_REJ}}</span><span class="num">0</span>
+          <span>Lost work in final app</span><span class="num">none</span><span class="num">none</span>
+        </div>
+        <div class="linklist">
+          <a href="/report/"><span>Full report with timelines and method</span><span>/report</span></a>
+          <a href="/apps/agents-graft/"><span>The app the Graft team built</span><span>/apps</span></a>
+          <a href="/apps/agents-git/"><span>The app the Git team built</span><span>/apps</span></a>
+          <a href="/data/results.json"><span>Raw results (JSON)</span><span>{{DATA_SIZE}}</span></a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="band" id="start">
+  <div class="wrap">
+    <div class="band-head">
+      <div><div class="eyebrow">Get started</div><h2>Running in three commands</h2></div>
+      <p class="lede">Node 22.5+ or Docker. The <a href="/docs/deploy/">deployment guide</a> covers TLS, backups, upgrades and releases.</p>
+    </div>
+    <div class="start">
+      <div class="step"><div class="n">SERVER</div><h3>Start Graft</h3>
+<pre><code>git clone https://github.com/G4G4N/graft && cd graft
+<span class="c-k">export</span> GRAFT_TOKEN=$(openssl rand -hex 32)
+docker compose up -d --build
+curl -s localhost:7070/api/version</code></pre></div>
+      <div class="step"><div class="n">AGENTS</div><h3>Connect Claude Code</h3>
+<pre><code>claude plugin marketplace add ./graft
+claude plugin install graft@graft
+<span class="c-k">export</span> GRAFT_URL=https://graft.example.com</code></pre></div>
+      <div class="step"><div class="n">FILES</div><h3>Workspaces for tests</h3>
+<pre><code>graft clone app work --sparse src
+<span class="c-c"># edit, run tests…</span>
+graft commit -m <span class="c-s">"Fix the router"</span></code></pre></div>
+    </div>
+  </div>
+</section>
+</main>
+
+{{FOOTER}}
+<div class="tip" id="tip" hidden></div>
+<script src="/assets/landing.js?v={{VERSION}}" defer></script>
+</body>
+</html>

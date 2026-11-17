@@ -1,0 +1,12 @@
+{
+  "name": "graft",
+  "owner": { "name": "graft" },
+  "metadata": { "description": "Graft: agent-first, server-side source control for Claude Code agents." },
+  "plugins": [
+    {
+      "name": "graft",
+      "source": "./plugin",
+      "description": "Agent-first source control (MCP tools + skill) for a Graft server."
+    }
+  ]
+}

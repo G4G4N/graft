@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "graft": {
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/dist/graft-mcp.js"],
+      "env": {
+        "GRAFT_URL": "${GRAFT_URL:-http://localhost:7070}",
+        "GRAFT_TOKEN": "${GRAFT_TOKEN:-}",
+        "GRAFT_REPO": "${GRAFT_REPO:-}",
+        "GRAFT_AUTHOR": "${GRAFT_AUTHOR:-claude-agent}"
+      }
+    }
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "source": "Agent completion notifications (wall time from launch to final report, tool calls, tokens). Model: Claude Haiku.",
+  "git":   [["axolotl",29873,7,73870],["octopus",76115,18,83224],["tardigrade",51038,24,80690],["narwhal",67854,30,85993],["mantis-shrimp",95118,29,87294],["slime-mold",86638,20,85107],["hummingbird",85317,34,93278],["venus-flytrap",71611,19,83568]],
+  "graft": [["axolotl",73472,35,87549],["octopus",60858,32,88253],["tardigrade",41739,20,79535],["narwhal",45253,24,82353],["mantis-shrimp",57586,28,87171],["slime-mold",52091,29,86005],["hummingbird",48306,14,77640],["venus-flytrap",63562,33,87593]]
+}

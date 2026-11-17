@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Swarm Live</title>
+<style>
+  :root {
+    --bg: #0e1110; --panel: #151a18; --panel2: #1b211e; --line: #262e2a; --text: #e6ece8; --muted: #8b968f;
+    --graft: #5fd08a; --cli: #4fc3c9; --git: #f08a4b; --think: #2a322e;
+    --op-setup: #a78bfa; --op-read: #60a5fa; --op-commit: #5fd08a; --op-push: #fbbf24; --op-rebase: #fb923c; --op-reset: #f87171;
+    --mono: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, -apple-system, sans-serif; }
+  header { position: sticky; top: 0; z-index: 3; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; padding: 12px 20px; background: rgba(14,17,16,.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+  h1 { font-size: 15px; margin: 0; display: flex; align-items: center; gap: 8px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--graft); display: inline-block; }
+  .dot.live { animation: pulse 1.4s infinite; }
+  @keyframes pulse { 50% { opacity: .25; } }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip { font: 12px var(--mono); padding: 4px 9px; border-radius: 99px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); cursor: pointer; white-space: nowrap; }
+  .chip.on { color: var(--text); border-color: currentColor; }
+  .chip .m { font-weight: 700; }
+  main { padding: 18px 20px 60px; max-width: 1500px; margin: 0 auto; }
+  .grid { display: grid; gap: 14px; }
+  .run { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+  .runhead { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+  .badge { font: 700 12px var(--mono); padding: 3px 9px; border-radius: 6px; color: #0e1110; }
+  .muted { color: var(--muted); }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 8px; margin-bottom: 12px; }
+  .tile { background: var(--panel2); border-radius: 8px; padding: 8px 10px; }
+  .tile .v { font: 600 19px var(--mono); }
+  .tile .k { color: var(--muted); font-size: 11.5px; text-transform: uppercase; letter-spacing: .04em; }
+  canvas { width: 100%; display: block; border-radius: 6px; background: #111513; }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin: 6px 0 2px; }
+  .legend i { display: inline-block; width: 12px; height: 8px; border-radius: 2px; margin-right: 5px; vertical-align: middle; }
+  .compare { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+  h2 { font-size: 13px; margin: 0 0 10px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 900px) { .row2 { grid-template-columns: 1fr; } }
+  table { width: 100%; border-collapse: collapse; font: 12.5px var(--mono); }
+  th, td { text-align: right; padding: 6px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; }
+  th { color: var(--muted); font-weight: 500; }
+  .ok { color: var(--graft); } .bad { color: #f87171; }
+  .empty { padding: 40px; text-align: center; color: var(--muted); }
+  a { color: var(--cli); }
+</style>
+</head>
+<body>
+<header>
+  <h1><span id="livedot" class="dot"></span> Swarm Live <span class="muted" style="font-weight:400">· agents building the Field Guide web app</span></h1>
+  <div class="chips" id="chips"></div>
+</header>
+<main>
+  <div class="legend">
+    <span><i style="background:var(--think)"></i>thinking (LLM time)</span>
+    <span><i style="background:var(--op-setup)"></i>workspace setup</span>
+    <span><i style="background:var(--op-read)"></i>read / sync / fetch</span>
+    <span><i style="background:var(--op-commit)"></i>commit / land</span>
+    <span><i style="background:var(--op-push)"></i>push</span>
+    <span><i style="background:var(--op-rebase)"></i>pull --rebase</span>
+    <span><i style="background:var(--op-reset)"></i>conflict recovery</span>
+    <span><i style="background:#fff;width:2px"></i>conflict</span>
+  </div>
+  <div class="grid" id="runs"><div class="empty">Waiting for runs…</div></div>
+  <div class="row2" style="margin-top:14px">
+    <div class="compare"><h2>Commit → landed latency (CDF)</h2><canvas id="cdf" height="260"></canvas></div>
+    <div class="compare"><h2>Summary</h2><div id="summary"></div></div>
+  </div>
+</main>
+<script>
+const MODE = {
+  graft: { name: "graft (MCP/API)", color: "#5fd08a" },
+  "graft-cli": { name: "graft CLI", color: "#4fc3c9" },
+  git: { name: "git", color: "#f08a4b" },
+  "real-graft": { name: "real agents · graft", color: "#5fd08a" },
+  "real-git": { name: "real agents · git", color: "#f08a4b" },
+};
+const opColor = (op) => {
+  if (!op) return "#888";
+  if (/clone|setup/.test(op)) return "#a78bfa";
+  if (/reset|abort/.test(op)) return "#f87171";
+  if (/rebase|pull/.test(op)) return "#fb923c";
+  if (/push/.test(op)) return "#fbbf24";
+  if (/read|resolve|sync|fetch|status|diff|cat|log|show|ls|search|blame|grep/.test(op)) return "#60a5fa";
+  return "#5fd08a"; // commit, add, commit+land, land
+};
+const state = { runs: [], selected: null, data: {} }; // data[id] = { events, next, agents }
+const fmt = (ms) => (ms == null ? "–" : ms < 1000 ? `${Math.round(ms)} ms` : `${(ms / 1000).toFixed(ms < 10000 ? 2 : 1)} s`);
+const pct = (xs, p) => (xs.length ? xs[Math.min(xs.length - 1, Math.floor((xs.length - 1) * p))] : null);
+const modeKey = (r) => (r.kind === "real" ? `real-${r.mode}` : r.mode);
+
+function defaultSelection(runs) {
+  // newest run of each mode within the newest batch (same label), else newest per mode
+  const pick = new Map();
+  for (const r of runs) if (!pick.has(modeKey(r))) pick.set(modeKey(r), r.id);
+  return [...pick.values()].slice(0, 4);
+}
+
+async function poll() {
+  try {
+    const { runs } = await (await fetch("/api/runs")).json();
+    state.runs = runs;
+    if (!state.selected) state.selected = defaultSelection(runs);
+    renderChips();
+    await Promise.all(state.selected.map(async (id) => {
+      const d = (state.data[id] ??= { events: [], next: 0, agents: null });
+      const r = await (await fetch(`/api/runs/${encodeURIComponent(id)}/events?since=${d.next}`)).json();
+      if (r.replace) { d.events = r.events; d.agents = r.agents; }
+      else { d.events.push(...r.events); d.next = r.next; }
+    }));
+    render();
+  } catch (e) { console.error(e); }
+  setTimeout(poll, 700);
+}
+
+function renderChips() {
+  const el = document.getElementById("chips");
+  el.innerHTML = state.runs.slice(0, 18).map((r) => {
+    const m = MODE[modeKey(r)] ?? { name: r.mode, color: "#aaa" };
+    const on = state.selected.includes(r.id);
+    return `<span class="chip ${on ? "on" : ""}" data-id="${r.id}" style="${on ? `color:${m.color}` : ""}" title="${r.id}">
+      ${r.status === "running" ? "● " : ""}<span class="m">${m.name}</span> × ${r.agents}${r.label ? ` · ${r.label}` : ""}</span>`;
+  }).join("");
+  for (const c of el.querySelectorAll(".chip")) c.onclick = () => {
+    const id = c.dataset.id;
+    state.selected = state.selected.includes(id) ? state.selected.filter((x) => x !== id) : [...state.selected, id].slice(-4);
+    poll.now?.();
+    renderChips(); render();
+  };
+  document.getElementById("livedot").classList.toggle("live", state.runs.some((r) => r.status === "running"));
+}
+
+function stats(run, events) {
+  const lands = events.filter((e) => e.kind === "land").map((e) => e.ms).sort((a, b) => a - b);
+  const ops = events.filter((e) => e.kind === "op");
+  const end = events.reduce((m, e) => Math.max(m, e.t + (e.ms || 0)), 0);
+  const agents = run.agents || 1;
+  // Real runs have no "land" events; approximate with commit-type op latencies.
+  const landish = lands.length ? lands : ops.filter((e) => (e.system === "git" ? e.op === "push" : e.op === "commit")).map((e) => e.ms).sort((a, b) => a - b);
+  return {
+    landed: lands.length || ops.filter((e) => (e.system === "git" ? e.op === "push" : e.op === "commit") && e.ok).length,
+    total: run.kind === "real" ? null : agents * 3,
+    p50: pct(landish, 0.5), p90: pct(landish, 0.9),
+    conflicts: events.filter((e) => e.kind === "conflict").length,
+    retries: run.kind === "real" ? ops.filter((e) => !e.ok).length : events.filter((e) => e.kind === "land").reduce((s, e) => s + (e.retries || 0), 0),
+    vcsPerAgent: ops.reduce((s, e) => s + e.ms, 0) / agents,
+    ops: ops.length,
+    wall: end,
+    landish,
+  };
+}
+
+function render() {
+  const sel = state.selected.map((id) => state.runs.find((r) => r.id === id)).filter(Boolean);
+  const box = document.getElementById("runs");
+  if (!sel.length) { box.innerHTML = `<div class="empty">No runs selected.</div>`; return; }
+  const all = sel.map((r) => ({ run: r, events: state.data[r.id]?.events ?? [] }));
+  const maxT = Math.max(1000, ...all.map(({ events }) => events.reduce((m, e) => Math.max(m, e.t + (e.ms || 0)), 0)));
+  // (Re)build panels only when the selection changes; otherwise update in place.
+  const key = sel.map((r) => r.id).join("|");
+  if (box.dataset.key !== key) {
+    box.dataset.key = key;
+    box.innerHTML = sel.map((r) => `<section class="run" id="p-${r.id}">
+      <div class="runhead"></div><div class="tiles"></div><canvas height="10"></canvas></section>`).join("");
+  }
+  for (const { run, events } of all) {
+    const el = document.getElementById(`p-${run.id}`);
+    const m = MODE[modeKey(run)] ?? { name: run.mode, color: "#aaa" };
+    const s = stats(run, events);
+    const verified = run.summary?.verified;
+    el.querySelector(".runhead").innerHTML = `
+      <span class="badge" style="background:${m.color}">${m.name}</span>
+      <strong>${run.agents} agents</strong>
+      <span class="muted">${run.kind === "real" ? "real Claude agents" : `scripted · think ${run.think?.[0]}–${run.think?.[1]} ms`}</span>
+      <span class="muted">${run.status === "running" ? "● running" : run.status}</span>
+      ${verified === true ? `<span class="ok">✓ app verified (no lost updates)</span>` : verified === false ? `<span class="bad">✗ verification failed</span>` : ""}
+      ${run.status === "done" && run.kind !== "real" ? `<a href="/app/${encodeURIComponent(run.id)}/index.html" target="_blank">open the app they built ↗</a>` : ""}`;
+    el.querySelector(".tiles").innerHTML = [
+      ["landed", s.total ? `${s.landed}/${s.total}` : s.landed],
+      ["land p50", fmt(s.p50)], ["land p90", fmt(s.p90)],
+      ["conflicts", s.conflicts], ["retries", s.retries],
+      ["vcs time / agent", fmt(s.vcsPerAgent)], ["wall clock", fmt(run.summary?.wallMs ?? s.wall)],
+    ].map(([k, v]) => `<div class="tile"><div class="v">${v}</div><div class="k">${k}</div></div>`).join("");
+    drawLanes(el.querySelector("canvas"), run, events, maxT);
+  }
+  drawCdf(all.map(({ run, events }) => ({ run, lands: stats(run, events).landish })));
+  document.getElementById("summary").innerHTML = `<table>
+    <tr><th>run</th><th>agents</th><th>p50</th><th>p90</th><th>conflicts</th><th>vcs/agent</th><th>wall</th></tr>
+    ${all.map(({ run, events }) => { const s = stats(run, events); const m = MODE[modeKey(run)] ?? { name: run.mode, color: "#aaa" };
+      return `<tr><td style="color:${m.color}">${m.name}</td><td>${run.agents}</td><td>${fmt(s.p50)}</td><td>${fmt(s.p90)}</td><td>${s.conflicts}</td><td>${fmt(s.vcsPerAgent)}</td><td>${fmt(run.summary?.wallMs ?? s.wall)}</td></tr>`; }).join("")}
+  </table><p class="muted" style="font-size:12px;margin-bottom:0">Lanes share one time axis, so a longer panel means the swarm took longer. Land latency = from "ready to commit" to "on main".</p>`;
+}
+
+function drawLanes(cv, run, events, maxT) {
+  const agents = Math.max(run.agents || 0, ...events.map((e) => (e.agent ?? -1) + 1));
+  const laneH = agents > 32 ? 7 : agents > 16 ? 10 : 15, gap = 2, padL = 6, padT = 18;
+  const dpr = devicePixelRatio || 1, W = cv.clientWidth || 900, H = padT + agents * (laneH + gap) + 6;
+  cv.width = W * dpr; cv.height = H * dpr; cv.style.height = H + "px";
+  const g = cv.getContext("2d"); g.scale(dpr, dpr);
+  const x = (t) => padL + (t / maxT) * (W - padL * 2);
+  // time grid
+  g.fillStyle = "#8b968f"; g.font = "10px ui-monospace, monospace";
+  const step = niceStep(maxT / 8);
+  for (let t = 0; t <= maxT; t += step) { g.fillRect(x(t), padT - 4, 1, H - padT); g.fillText(fmt(t), x(t) + 3, 11); }
+  g.globalAlpha = 1;
+  for (const e of events) {
+    if (e.agent == null) continue;
+    const y = padT + e.agent * (laneH + gap);
+    if (e.kind === "think") { g.fillStyle = "#2a322e"; g.fillRect(x(e.t), y, Math.max(1, x(e.t + e.ms) - x(e.t)), laneH); }
+    else if (e.kind === "op") { g.fillStyle = opColor(e.op); g.fillRect(x(e.t), y, Math.max(1.5, x(e.t + e.ms) - x(e.t)), laneH); }
+    else if (e.kind === "conflict") { g.fillStyle = "#fff"; g.fillRect(x(e.t) - 1, y - 1, 2, laneH + 2); }
+  }
+}
+function niceStep(raw) { const p = Math.pow(10, Math.floor(Math.log10(raw))); const n = raw / p; return (n < 1.5 ? 1 : n < 3.5 ? 2 : n < 7.5 ? 5 : 10) * p; }
+
+function drawCdf(series) {
+  const cv = document.getElementById("cdf");
+  const dpr = devicePixelRatio || 1, W = cv.clientWidth || 600, H = 260;
+  cv.width = W * dpr; cv.height = H * dpr; cv.style.height = H + "px";
+  const g = cv.getContext("2d"); g.scale(dpr, dpr);
+  const L = 44, R = 12, T = 12, B = 28;
+  const all = series.flatMap((s) => s.lands).filter((v) => v > 0);
+  if (!all.length) return;
+  // Linear time axis: milliseconds and seconds must not be drawn the same distance apart.
+  const raw = Math.max(...all) / 5, pw = Math.pow(10, Math.floor(Math.log10(raw)));
+  const step = [1, 2, 2.5, 5, 10].map((k) => k * pw).find((st) => st >= raw);
+  const hi = Math.ceil(Math.max(...all) / step) * step;
+  const lx = (v) => L + (v / hi) * (W - L - R);
+  const ly = (p) => T + (1 - p) * (H - T - B);
+  g.strokeStyle = "#262e2a"; g.fillStyle = "#8b968f"; g.font = "10px ui-monospace, monospace";
+  for (let v = 0; v <= hi + 1e-9; v += step) { g.beginPath(); g.moveTo(lx(v), T); g.lineTo(lx(v), H - B); g.stroke(); g.fillText(v === 0 ? "0" : fmt(v), lx(v) - 10, H - 10); }
+  for (const p of [0, 0.5, 0.9, 1]) { g.beginPath(); g.moveTo(L, ly(p)); g.lineTo(W - R, ly(p)); g.stroke(); g.fillText(`p${Math.round(p * 100)}`, 8, ly(p) + 3); }
+  for (const { run, lands } of series) {
+    if (!lands.length) continue;
+    const m = MODE[modeKey(run)] ?? { color: "#aaa" };
+    g.strokeStyle = m.color; g.lineWidth = 2; g.beginPath();
+    lands.forEach((v, i) => { const X = lx(v), Y = ly((i + 1) / lands.length); i ? g.lineTo(X, Y) : g.moveTo(X, Y); });
+    g.stroke(); g.lineWidth = 1;
+  }
+}
+addEventListener("resize", render);
+poll();
+</script>
+</body>
+</html>

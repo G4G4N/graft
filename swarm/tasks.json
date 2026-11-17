@@ -1,0 +1,290 @@
+[
+ {
+  "slug": "axolotl",
+  "label": "Axolotl",
+  "summary": "A salamander that never grows up \u2014 and regrows lost limbs.",
+  "hue": 150
+ },
+ {
+  "slug": "baobab",
+  "label": "Baobab",
+  "summary": "Upside-down trees that store thousands of litres of water.",
+  "hue": 25
+ },
+ {
+  "slug": "barn-owl",
+  "label": "Barn Owl",
+  "summary": "Heart-faced hunter that finds prey by sound alone.",
+  "hue": 200
+ },
+ {
+  "slug": "bioluminescence",
+  "label": "Bioluminescence",
+  "summary": "How fireflies, fungi and plankton make their own light.",
+  "hue": 280
+ },
+ {
+  "slug": "bumblebee",
+  "label": "Bumblebee",
+  "summary": "Fuzzy pollinators that shiver to stay warm.",
+  "hue": 45
+ },
+ {
+  "slug": "cactus",
+  "label": "Cactus",
+  "summary": "Desert specialists with spines instead of leaves.",
+  "hue": 100
+ },
+ {
+  "slug": "chameleon",
+  "label": "Chameleon",
+  "summary": "Colour-shifting lizards with independently moving eyes.",
+  "hue": 330
+ },
+ {
+  "slug": "coral-reef",
+  "label": "Coral Reef",
+  "summary": "Animal-built cities that shelter a quarter of sea life.",
+  "hue": 190
+ },
+ {
+  "slug": "cuttlefish",
+  "label": "Cuttlefish",
+  "summary": "Masters of camouflage with three hearts.",
+  "hue": 260
+ },
+ {
+  "slug": "dandelion",
+  "label": "Dandelion",
+  "summary": "A weed whose seeds ride parachutes across continents.",
+  "hue": 60
+ },
+ {
+  "slug": "dragonfly",
+  "label": "Dragonfly",
+  "summary": "Ancient aerial predators with near-360\u00b0 vision.",
+  "hue": 170
+ },
+ {
+  "slug": "eel",
+  "label": "Eel",
+  "summary": "Snake-like fish that migrate thousands of kilometres to spawn.",
+  "hue": 10
+ },
+ {
+  "slug": "ferns",
+  "label": "Ferns",
+  "summary": "Plants older than dinosaurs that reproduce with spores.",
+  "hue": 120
+ },
+ {
+  "slug": "fireflies",
+  "label": "Fireflies",
+  "summary": "Beetles that flash coded light to find mates.",
+  "hue": 50
+ },
+ {
+  "slug": "flamingo",
+  "label": "Flamingo",
+  "summary": "Pink because of what they eat.",
+  "hue": 340
+ },
+ {
+  "slug": "giant-sequoia",
+  "label": "Giant Sequoia",
+  "summary": "Earth's most massive trees, thousands of years old.",
+  "hue": 140
+ },
+ {
+  "slug": "hedgehog",
+  "label": "Hedgehog",
+  "summary": "Small insect-eaters covered in about 5,000 spines.",
+  "hue": 30
+ },
+ {
+  "slug": "honey-badger",
+  "label": "Honey Badger",
+  "summary": "Famously fearless mustelid with a sweet tooth.",
+  "hue": 0
+ },
+ {
+  "slug": "hummingbird",
+  "label": "Hummingbird",
+  "summary": "Birds that hover and beat their wings up to 80 times a second.",
+  "hue": 175
+ },
+ {
+  "slug": "jellyfish",
+  "label": "Jellyfish",
+  "summary": "Brainless drifters older than trees.",
+  "hue": 220
+ },
+ {
+  "slug": "kelp-forest",
+  "label": "Kelp Forest",
+  "summary": "Underwater forests that grow half a metre a day.",
+  "hue": 160
+ },
+ {
+  "slug": "lichen",
+  "label": "Lichen",
+  "summary": "Partnerships of fungi and algae that colonise bare rock.",
+  "hue": 80
+ },
+ {
+  "slug": "lynx",
+  "label": "Lynx",
+  "summary": "Tufted-ear cats built for deep snow.",
+  "hue": 35
+ },
+ {
+  "slug": "mantis-shrimp",
+  "label": "Mantis Shrimp",
+  "summary": "Punches as fast as a bullet; sees colours we can't.",
+  "hue": 240
+ },
+ {
+  "slug": "monarch",
+  "label": "Monarch Butterfly",
+  "summary": "Migrates across North America over several generations.",
+  "hue": 20
+ },
+ {
+  "slug": "moss",
+  "label": "Moss",
+  "summary": "Tiny plants that hold water like sponges.",
+  "hue": 110
+ },
+ {
+  "slug": "mycelium",
+  "label": "Mycelium",
+  "summary": "The underground web that connects a forest.",
+  "hue": 90
+ },
+ {
+  "slug": "narwhal",
+  "label": "Narwhal",
+  "summary": "The unicorn of the sea \u2014 its tusk is a tooth.",
+  "hue": 210
+ },
+ {
+  "slug": "nautilus",
+  "label": "Nautilus",
+  "summary": "A living fossil that adjusts its buoyancy with gas chambers.",
+  "hue": 40
+ },
+ {
+  "slug": "octopus",
+  "label": "Octopus",
+  "summary": "Eight arms, three hearts and a distributed brain.",
+  "hue": 195
+ },
+ {
+  "slug": "orca",
+  "label": "Orca",
+  "summary": "Apex predators with family dialects.",
+  "hue": 230
+ },
+ {
+  "slug": "pangolin",
+  "label": "Pangolin",
+  "summary": "The only mammal covered in scales.",
+  "hue": 15
+ },
+ {
+  "slug": "penguin",
+  "label": "Penguin",
+  "summary": "Flightless birds that 'fly' underwater.",
+  "hue": 205
+ },
+ {
+  "slug": "pitcher-plant",
+  "label": "Pitcher Plant",
+  "summary": "Carnivorous plants that drown their prey.",
+  "hue": 130
+ },
+ {
+  "slug": "platypus",
+  "label": "Platypus",
+  "summary": "Egg-laying mammal that senses electricity.",
+  "hue": 185
+ },
+ {
+  "slug": "puffin",
+  "label": "Puffin",
+  "summary": "Clown-faced seabirds that carry fish crosswise.",
+  "hue": 270
+ },
+ {
+  "slug": "red-panda",
+  "label": "Red Panda",
+  "summary": "Bamboo-eating tree dweller, not a bear.",
+  "hue": 5
+ },
+ {
+  "slug": "salmon",
+  "label": "Salmon",
+  "summary": "Fish that return to the stream where they hatched.",
+  "hue": 355
+ },
+ {
+  "slug": "sea-otter",
+  "label": "Sea Otter",
+  "summary": "Holds hands while sleeping so it won't drift apart.",
+  "hue": 215
+ },
+ {
+  "slug": "slime-mold",
+  "label": "Slime Mold",
+  "summary": "Brainless blobs that solve mazes.",
+  "hue": 300
+ },
+ {
+  "slug": "sloth",
+  "label": "Sloth",
+  "summary": "So slow that algae grows in its fur.",
+  "hue": 70
+ },
+ {
+  "slug": "snow-leopard",
+  "label": "Snow Leopard",
+  "summary": "Ghost of the mountains with a tail used as a scarf.",
+  "hue": 225
+ },
+ {
+  "slug": "sunflower",
+  "label": "Sunflower",
+  "summary": "Young heads track the sun across the sky.",
+  "hue": 55
+ },
+ {
+  "slug": "tardigrade",
+  "label": "Tardigrade",
+  "summary": "Microscopic animals that survive the vacuum of space.",
+  "hue": 250
+ },
+ {
+  "slug": "venus-flytrap",
+  "label": "Venus Flytrap",
+  "summary": "Counts touches before it snaps shut.",
+  "hue": 125
+ },
+ {
+  "slug": "walrus",
+  "label": "Walrus",
+  "summary": "Uses its tusks to haul itself onto ice.",
+  "hue": 180
+ },
+ {
+  "slug": "wolf",
+  "label": "Wolf",
+  "summary": "Pack hunters whose howls carry ten kilometres.",
+  "hue": 320
+ },
+ {
+  "slug": "woodpecker",
+  "label": "Woodpecker",
+  "summary": "Drums 20 times a second without a headache.",
+  "hue": 65
+ }
+]

@@ -1,0 +1,686 @@
+<title>Graft Swarm Report</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: one reading column (~70ch) with figures that break out to a wider measure; data in mono. */
+:root {
+  --bg: #f6f7f6; --surface: #ffffff; --ink: #121815; --muted: #58625c; --faint: #8a938d; --line: #dde2df; --soft: #eef1ef;
+  --graft: #2a78d6; --git: #eb6834; --cli: #1baf7a;
+  --op-read: #2a78d6; --op-commit: #008300; --op-push: #eda100; --op-rebase: #eb6834; --op-reset: #e34948; --op-think: #e3e7e4; --op-mark: #121815;
+  --good: #1a7f37; --bad: #c4372f;
+  --display: "Instrument Sans", "Inter", system-ui, sans-serif;
+  --body: "Inter", system-ui, -apple-system, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #101312; --surface: #171b19; --ink: #eaefec; --muted: #a0aaa4; --faint: #6f7a73; --line: #2a312d; --soft: #1e2421;
+    --graft: #3987e5; --git: #d95926; --cli: #199e70;
+    --op-read: #3987e5; --op-commit: #2fa84f; --op-push: #c98500; --op-rebase: #d95926; --op-reset: #e66767; --op-think: #252c28; --op-mark: #f2f5f3;
+    --good: #4cc070; --bad: #f07a72;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #101312; --surface: #171b19; --ink: #eaefec; --muted: #a0aaa4; --faint: #6f7a73; --line: #2a312d; --soft: #1e2421;
+  --graft: #3987e5; --git: #d95926; --cli: #199e70;
+  --op-read: #3987e5; --op-commit: #2fa84f; --op-push: #c98500; --op-rebase: #d95926; --op-reset: #e66767; --op-think: #252c28; --op-mark: #f2f5f3;
+  --good: #4cc070; --bad: #f07a72;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body { background: var(--bg); color: var(--ink); font: 16px/1.65 var(--body); margin: 0; }
+.wrap { max-width: 1120px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 0; }
+.col { max-width: 70ch; }
+h1, h2, h3 { font-family: var(--display); line-height: 1.15; text-wrap: balance; letter-spacing: -0.01em; }
+h1 { font-size: clamp(2rem, 5vw, 3.2rem); margin: 0 0 14px; font-weight: 700; }
+h2 { font-size: 1.65rem; margin: 64px 0 12px; font-weight: 650; }
+h3 { font-size: 1.12rem; margin: 30px 0 8px; font-weight: 600; }
+p { margin: 0 0 14px; }
+a { color: var(--graft); }
+code, .mono { font-family: var(--mono); font-size: 0.86em; }
+code { background: var(--soft); padding: 1px 5px; border-radius: 4px; }
+.eyebrow { font: 600 12px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.lede { font-size: 1.15rem; color: var(--muted); max-width: 62ch; }
+header.hero { padding-block: 56px 28px; border-bottom: 1px solid var(--line); }
+nav.toc { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+nav.toc .wrap { display: flex; gap: 4px 18px; flex-wrap: wrap; padding-block: 10px; font-size: 14px; }
+nav.toc a { color: var(--muted); text-decoration: none; }
+nav.toc a:hover, nav.toc a:focus-visible { color: var(--ink); }
+:focus-visible { outline: 2px solid var(--graft); outline-offset: 2px; border-radius: 3px; }
+
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-top: 30px; }
+.stat { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; min-width: 0; }
+.stat .v { font: 600 1.7rem/1.1 var(--mono); font-variant-numeric: tabular-nums; }
+.stat .k { color: var(--muted); font-size: 13.5px; margin-top: 6px; }
+.stat .v small { font-size: .55em; color: var(--muted); font-weight: 500; }
+
+figure { margin: 26px 0 30px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px; min-width: 0; }
+figure svg.diagram { display: block; width: 100%; height: auto; color: var(--ink); }
+figcaption { color: var(--muted); font-size: 14px; margin-top: 12px; max-width: 75ch; }
+figcaption b { color: var(--ink); font-weight: 600; }
+.scroll { overflow-x: auto; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grid2 > * { min-width: 0; }
+@media (max-width: 820px) { .grid2 { grid-template-columns: 1fr; } }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--muted); margin: 0 0 10px; }
+.legend i { display: inline-block; width: 14px; height: 9px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+.legend i.line { height: 3px; border-radius: 2px; }
+.chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.chart text { fill: var(--muted); font: 11.5px var(--mono); }
+.chart .grid line { stroke: var(--line); }
+.chart .axis line { stroke: var(--faint); }
+.chart .lbl { fill: var(--ink); font: 600 12px var(--mono); }
+.chart .hit { fill: transparent; cursor: crosshair; }
+.charthead { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: baseline; margin-bottom: 6px; }
+.charthead h4 { margin: 0; font: 600 14px var(--body); }
+.tip { position: fixed; z-index: 20; pointer-events: none; background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font: 12px/1.45 var(--mono); box-shadow: 0 6px 24px rgba(0,0,0,.14); }
+.tip b { font-weight: 600; }
+
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--muted); font-weight: 500; font-size: 13px; }
+td.num, th.num { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sw { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 7px; vertical-align: 1px; }
+.pill { display: inline-block; font: 600 11px var(--mono); padding: 2px 7px; border-radius: 99px; border: 1px solid currentColor; white-space: nowrap; }
+.sev-high { color: var(--bad); } .sev-med { color: var(--git); } .sev-low { color: var(--muted); }
+.ok { color: var(--good); } .bad { color: var(--bad); }
+canvas.lanes { display: block; width: 100%; border-radius: 6px; }
+.lanehead { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; margin: 16px 0 6px; font-size: 14px; }
+.lanehead:first-of-type { margin-top: 4px; }
+.lanehead strong { font-family: var(--mono); font-size: 13px; }
+.note { border-left: 3px solid var(--line); padding: 2px 0 2px 14px; color: var(--muted); }
+ol.steps, ul.tight { padding-left: 20px; margin: 0 0 14px; }
+ol.steps li, ul.tight li { margin: 4px 0; }
+pre { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; overflow-x: auto; font: 13px/1.55 var(--mono); }
+footer { margin-top: 70px; padding-block: 26px 50px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }
+</style>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow">Field report · Graft v__VERSION__ · <span id="gen-date"></span></div>
+    <h1>Graft vs Git under an agent swarm</h1>
+    <p class="lede">Many agents built one web app in the same repository at the same time, once through Git and once through Graft, a server-side source control system for agents. Below: how Graft works, what changed in the bug scan, and the measured timing difference from scripted swarms of up to <span data-k="maxAgents"></span> agents and from <span data-k="realAgents"></span> real Claude agents.</p>
+    <div class="stats" id="hero-stats"></div>
+  </div>
+</header>
+<nav class="toc" aria-label="Sections"><div class="wrap">
+  <a href="#design">How Graft works</a><a href="#flows">The two loops</a><a href="#workspaces">Workspaces</a><a href="#experiment">Experiment</a><a href="#results">Results</a><a href="#real-agents">Real agents</a><a href="#bugs">Bug scan</a><a href="#method">Method</a>
+</div></nav>
+
+<main class="wrap">
+<section id="design">
+  <h2>How Graft works</h2>
+  <div class="col">
+    <p>Git assumes every client keeps a full copy of history and works offline. Agents are always online, they make small changes, and many of them land on the same branch at once. Graft moves the work to the server. Agents read and search through an API, send a change with the revision they read, and the server creates the commit, rebases it if the branch moved, and lands it. Nothing is cloned, pulled or pushed.</p>
+  </div>
+  <figure>
+    <svg class="diagram" viewBox="0 0 980 390" role="img" aria-label="Clients talk to one Graft server. MCP agents read, search and commit-and-land through the JSON API. CLI workspaces fetch immutable blobs through a machine-wide cache. The store holds changesets, compare-and-swap refs, derived data and content-addressed blobs.">
+      <defs>
+        <marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker>
+      </defs>
+      <g font-family="Inter, system-ui, sans-serif" font-size="13" fill="currentColor">
+        <!-- clients -->
+        <rect x="20" y="40" width="200" height="74" rx="10" fill="none" stroke="var(--graft)" stroke-width="2"/>
+        <text x="120" y="70" text-anchor="middle" font-weight="600">Claude agents</text>
+        <text x="120" y="92" text-anchor="middle" fill="var(--muted)" font-size="12">graft_* MCP tools, no checkout</text>
+        <rect x="20" y="158" width="200" height="74" rx="10" fill="none" stroke="currentColor" stroke-opacity=".5"/>
+        <text x="120" y="188" text-anchor="middle" font-weight="600">graft CLI workspaces</text>
+        <text x="120" y="210" text-anchor="middle" fill="var(--muted)" font-size="12">sparse, fetch on demand</text>
+        <rect x="20" y="276" width="200" height="74" rx="10" fill="none" stroke="currentColor" stroke-opacity=".5"/>
+        <text x="120" y="306" text-anchor="middle" font-weight="600">People</text>
+        <text x="120" y="328" text-anchor="middle" fill="var(--muted)" font-size="12">web viewer</text>
+        <!-- node cache -->
+        <rect x="250" y="166" width="120" height="58" rx="8" fill="none" stroke="currentColor" stroke-dasharray="4 3" stroke-opacity=".6"/>
+        <text x="310" y="191" text-anchor="middle" font-weight="600" font-size="12.5">node cache</text>
+        <text x="310" y="210" text-anchor="middle" fill="var(--muted)" font-size="11.5">~/.graft/cache</text>
+        <!-- server -->
+        <rect x="450" y="20" width="510" height="350" rx="14" fill="none" stroke="currentColor" stroke-width="1.5"/>
+        <text x="472" y="46" font-weight="700" font-size="14">graft server</text>
+        <text x="938" y="46" text-anchor="end" fill="var(--muted)" font-size="12">one container · SQLite + blob dir</text>
+        <rect x="472" y="64" width="466" height="48" rx="8" fill="var(--soft)" stroke="currentColor" stroke-opacity=".35"/>
+        <text x="705" y="86" text-anchor="middle" font-weight="600">JSON API</text>
+        <text x="705" y="103" text-anchor="middle" fill="var(--muted)" font-size="11.5">commit+land · read · search · diff · blame · log · manifest · blobs</text>
+        <rect x="472" y="134" width="226" height="98" rx="8" fill="none" stroke="currentColor" stroke-opacity=".5"/>
+        <text x="585" y="160" text-anchor="middle" font-weight="600">changesets</text>
+        <text x="585" y="181" text-anchor="middle" fill="var(--muted)" font-size="11.5">immutable write-ahead log</text>
+        <text x="585" y="199" text-anchor="middle" fill="var(--muted)" font-size="11.5">only paths changed vs parent</text>
+        <text x="585" y="217" text-anchor="middle" fill="var(--muted)" font-size="11.5">content-addressed id</text>
+        <rect x="712" y="134" width="226" height="98" rx="8" fill="none" stroke="var(--graft)" stroke-width="2"/>
+        <text x="825" y="160" text-anchor="middle" font-weight="600">refs</text>
+        <text x="825" y="181" text-anchor="middle" fill="var(--muted)" font-size="11.5">one row per branch</text>
+        <text x="825" y="199" text-anchor="middle" fill="var(--muted)" font-size="11.5">moved only by compare-and-swap</text>
+        <text x="825" y="217" text-anchor="middle" fill="var(--muted)" font-size="11.5">no lock, no merge queue</text>
+        <rect x="472" y="252" width="226" height="98" rx="8" fill="none" stroke="currentColor" stroke-opacity=".5" stroke-dasharray="5 3"/>
+        <text x="585" y="278" text-anchor="middle" font-weight="600">derived data</text>
+        <text x="585" y="299" text-anchor="middle" fill="var(--muted)" font-size="11.5">manifests, trees, blame, history</text>
+        <text x="585" y="317" text-anchor="middle" fill="var(--muted)" font-size="11.5">computed from parents, cached</text>
+        <text x="585" y="335" text-anchor="middle" fill="var(--muted)" font-size="11.5">checkpoint every 64 generations</text>
+        <rect x="712" y="252" width="226" height="98" rx="8" fill="none" stroke="currentColor" stroke-opacity=".5"/>
+        <text x="825" y="278" text-anchor="middle" font-weight="600">blobs</text>
+        <text x="825" y="299" text-anchor="middle" fill="var(--muted)" font-size="11.5">sha-256 addressed, gzip</text>
+        <text x="825" y="317" text-anchor="middle" fill="var(--muted)" font-size="11.5">written once, never change</text>
+        <text x="825" y="335" text-anchor="middle" fill="var(--muted)" font-size="11.5">any tier may cache them</text>
+        <!-- arrows -->
+        <line x1="220" y1="77" x2="468" y2="86" stroke="var(--graft)" stroke-width="2" marker-end="url(#a1)" style="color:var(--graft)"/>
+        <text x="340" y="70" text-anchor="middle" font-size="12" fill="var(--graft)" font-weight="600">read · commit + land</text>
+        <line x1="220" y1="195" x2="246" y2="195" stroke="currentColor" stroke-opacity=".7" marker-end="url(#a1)"/>
+        <line x1="370" y1="195" x2="446" y2="195" stroke="currentColor" stroke-opacity=".7" marker-end="url(#a1)"/>
+        <text x="409" y="186" text-anchor="middle" font-size="11.5" fill="var(--muted)">blobs/get</text>
+        <line x1="220" y1="222" x2="446" y2="246" stroke="currentColor" stroke-opacity=".5" stroke-dasharray="4 3" marker-end="url(#a1)"/>
+        <text x="333" y="262" text-anchor="middle" font-size="11.5" fill="var(--muted)">commit · content inline</text>
+        <line x1="220" y1="313" x2="446" y2="313" stroke="currentColor" stroke-opacity=".5" marker-end="url(#a1)"/>
+        <text x="333" y="304" text-anchor="middle" font-size="11.5" fill="var(--muted)">log · diff · blame</text>
+        <line x1="705" y1="112" x2="705" y2="130" stroke="currentColor" stroke-opacity=".6" marker-end="url(#a1)"/>
+      </g>
+    </svg>
+    <figcaption><b>One server, three kinds of client.</b> Agents never hold a copy of the repository: they ask the server. The CLI exists for agents that need real files to run tests, and it shares one content-addressed cache per machine, so a second workspace downloads nothing.</figcaption>
+  </figure>
+
+  <h3>Changesets and derived data</h3>
+  <div class="col"><p>A changeset records only the paths that changed relative to its first parent, each pointing at a blob hash. Commit cost depends on the size of the change, not the size of the repository. Everything else (the full file tree, blame, path history) is derived from parents when it is first asked for, then cached. Full trees are checkpointed every 64 generations, so a cold server never walks more than 64 changesets to rebuild one.</p></div>
+  <figure>
+    <div class="scroll">
+    <svg class="diagram" viewBox="0 0 980 250" role="img" aria-label="A chain of changesets, each storing only changed paths. The full manifest of the newest changeset is derived by taking the nearest checkpoint and applying the later change lists in order.">
+      <defs><marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker></defs>
+      <g font-family="JetBrains Mono, ui-monospace, monospace" font-size="11.5" fill="currentColor">
+        <g>
+          <rect x="20" y="40" width="170" height="92" rx="8" fill="none" stroke="var(--graft)" stroke-width="2"/>
+          <text x="32" y="62" font-weight="600">gen 64 · 9a1f…</text>
+          <text x="32" y="84" fill="var(--muted)">checkpoint:</text>
+          <text x="32" y="102" fill="var(--muted)">full path→blob map</text>
+          <text x="32" y="120" fill="var(--muted)">stored as one blob</text>
+        </g>
+        <g>
+          <rect x="250" y="40" width="170" height="92" rx="8" fill="none" stroke="currentColor" stroke-opacity=".5"/>
+          <text x="262" y="62" font-weight="600">gen 65 · 4c07…</text>
+          <text x="262" y="84">app.js → b31e…</text>
+          <text x="262" y="102">index.html → 77d0…</text>
+        </g>
+        <g>
+          <rect x="480" y="40" width="170" height="92" rx="8" fill="none" stroke="currentColor" stroke-opacity=".5"/>
+          <text x="492" y="62" font-weight="600">gen 66 · e8b2…</text>
+          <text x="492" y="84">pages/orca.js → 0f9a…</text>
+          <text x="492" y="102">styles.css → c4d1…</text>
+        </g>
+        <g>
+          <rect x="710" y="40" width="170" height="92" rx="8" fill="none" stroke="currentColor" stroke-opacity=".5"/>
+          <text x="722" y="62" font-weight="600">gen 67 · 51aa…</text>
+          <text x="722" y="84">CHANGELOG.md → 2e6b…</text>
+          <text x="722" y="102" fill="var(--muted)">old.txt → deleted</text>
+        </g>
+        <line x1="250" y1="86" x2="194" y2="86" stroke="currentColor" stroke-opacity=".6" marker-end="url(#a2)"/>
+        <line x1="480" y1="86" x2="424" y2="86" stroke="currentColor" stroke-opacity=".6" marker-end="url(#a2)"/>
+        <line x1="710" y1="86" x2="654" y2="86" stroke="currentColor" stroke-opacity=".6" marker-end="url(#a2)"/>
+        <text x="222" y="76" text-anchor="middle" fill="var(--muted)" font-size="10.5">parent</text>
+        <text x="452" y="76" text-anchor="middle" fill="var(--muted)" font-size="10.5">parent</text>
+        <text x="682" y="76" text-anchor="middle" fill="var(--muted)" font-size="10.5">parent</text>
+        <path d="M105 140 C 105 200, 300 200, 335 168" fill="none" stroke="var(--graft)" stroke-width="1.6" marker-end="url(#a2)" style="color:var(--graft)"/>
+        <path d="M335 140 C 335 200, 530 200, 565 168" fill="none" stroke="var(--graft)" stroke-width="1.6" marker-end="url(#a2)" style="color:var(--graft)"/>
+        <path d="M565 140 C 565 200, 760 200, 795 168" fill="none" stroke="var(--graft)" stroke-width="1.6" marker-end="url(#a2)" style="color:var(--graft)"/>
+        <text x="490" y="232" text-anchor="middle" fill="var(--graft)" font-family="Inter, system-ui" font-size="12.5" font-weight="600">manifest(gen 67) = checkpoint(64) + changes 65 + 66 + 67, cached in memory</text>
+      </g>
+    </svg>
+    </div>
+    <figcaption><b>Commits store deltas; trees are derived.</b> Creating gen 67 writes two rows. Answering "what is the tree at gen 67?" starts from the gen-64 checkpoint and replays three short change lists. Blame is derived the same way, one file version at a time, and cached per version.</figcaption>
+  </figure>
+</section>
+
+<section id="flows">
+  <h2>The two loops an agent runs</h2>
+  <div class="col">
+    <p>The biggest difference is where the retry loop runs. When two agents race to the same branch, a Git agent loses the push, fetches, rebases locally, possibly resolves a conflict, and pushes again: every turn of that loop is several Git processes plus a round trip to the remote. A Graft agent sends one request. If the branch moved, the server rebases the change in memory and retries the compare-and-swap itself, in microseconds. Only a real textual conflict comes back to the agent.</p>
+  </div>
+  <figure>
+    <div class="scroll">
+    <svg class="diagram" viewBox="0 0 1030 520" role="img" aria-label="Left: the Git loop: pull, edit, commit, push; on rejection pull --rebase; on conflict abort, reset and re-apply; then push again. Right: the Graft loop: read at changeset C, one commit-and-land call; on the server, fast-forward or rebase with a three-way merge, then compare-and-swap; only a textual conflict returns to the agent.">
+      <defs>
+        <marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker>
+      </defs>
+      <g font-family="Inter, system-ui, sans-serif" font-size="12.5" fill="currentColor">
+        <!-- GIT side -->
+        <text x="30" y="34" font-weight="700" font-size="15" fill="var(--git)">git agent</text>
+        <text x="30" y="54" fill="var(--muted)" font-size="12">every box is a git process; every dashed edge crosses to the remote</text>
+        <rect x="30" y="76" width="190" height="40" rx="8" fill="none" stroke="currentColor" stroke-opacity=".5"/><text x="125" y="101" text-anchor="middle">pull --rebase</text>
+        <rect x="30" y="140" width="190" height="40" rx="8" fill="none" stroke="currentColor" stroke-opacity=".5"/><text x="125" y="165" text-anchor="middle">edit files</text>
+        <rect x="30" y="204" width="190" height="40" rx="8" fill="none" stroke="currentColor" stroke-opacity=".5"/><text x="125" y="229" text-anchor="middle">add + commit</text>
+        <rect x="30" y="268" width="190" height="40" rx="8" fill="none" stroke="var(--git)" stroke-width="2"/><text x="125" y="293" text-anchor="middle" font-weight="600">push</text>
+        <rect x="30" y="440" width="190" height="40" rx="8" fill="var(--soft)" stroke="currentColor" stroke-opacity=".5"/><text x="125" y="465" text-anchor="middle" font-weight="600">landed</text>
+        <rect x="280" y="268" width="170" height="40" rx="8" fill="none" stroke="var(--git)" stroke-width="2"/><text x="365" y="293" text-anchor="middle">pull --rebase</text>
+        <rect x="280" y="354" width="170" height="40" rx="8" fill="none" stroke="var(--op-reset)" stroke-width="2"/><text x="365" y="372" text-anchor="middle">conflict:</text><text x="365" y="388" text-anchor="middle" font-size="11.5">abort · reset · re-apply</text>
+        <line x1="125" y1="116" x2="125" y2="136" stroke="currentColor" stroke-opacity=".6" marker-end="url(#a3)"/>
+        <line x1="125" y1="180" x2="125" y2="200" stroke="currentColor" stroke-opacity=".6" marker-end="url(#a3)"/>
+        <line x1="125" y1="244" x2="125" y2="264" stroke="currentColor" stroke-opacity=".6" marker-end="url(#a3)"/>
+        <line x1="125" y1="308" x2="125" y2="436" stroke="currentColor" stroke-opacity=".6" marker-end="url(#a3)"/>
+        <text x="135" y="380" fill="var(--muted)" font-size="11.5">accepted</text>
+        <line x1="220" y1="288" x2="276" y2="288" stroke="var(--git)" stroke-dasharray="5 3" marker-end="url(#a3)" style="color:var(--git)"/>
+        <text x="248" y="304" text-anchor="middle" font-size="11" fill="var(--git)">rejected</text>
+        <path d="M365 268 C 365 230, 250 230, 224 280" fill="none" stroke="var(--git)" stroke-dasharray="5 3" marker-end="url(#a3)" style="color:var(--git)"/>
+        <text x="330" y="236" font-size="11" fill="var(--git)">rebased: push again</text>
+        <line x1="365" y1="308" x2="365" y2="350" stroke="var(--op-reset)" marker-end="url(#a3)" style="color:var(--op-reset)"/>
+        <text x="372" y="334" font-size="11" fill="var(--op-reset)">conflict</text>
+        <path d="M280 374 C 240 374, 240 230, 224 228" fill="none" stroke="var(--op-reset)" marker-end="url(#a3)" style="color:var(--op-reset)"/>
+        <!-- divider -->
+        <line x1="500" y1="20" x2="500" y2="500" stroke="currentColor" stroke-opacity=".15"/>
+        <!-- GRAFT side -->
+        <text x="530" y="34" font-weight="700" font-size="15" fill="var(--graft)">graft agent (MCP)</text>
+        <text x="530" y="54" fill="var(--muted)" font-size="12">one request; the retry loop lives inside the server</text>
+        <rect x="530" y="76" width="190" height="40" rx="8" fill="none" stroke="currentColor" stroke-opacity=".5"/><text x="625" y="101" text-anchor="middle">read files at C</text>
+        <rect x="530" y="140" width="190" height="40" rx="8" fill="none" stroke="currentColor" stroke-opacity=".5"/><text x="625" y="165" text-anchor="middle">decide edits</text>
+        <rect x="530" y="204" width="190" height="40" rx="8" fill="none" stroke="var(--graft)" stroke-width="2"/><text x="625" y="222" text-anchor="middle" font-weight="600">graft_commit</text><text x="625" y="237" text-anchor="middle" font-size="11" fill="var(--muted)">base = C, changes</text>
+        <rect x="530" y="300" width="190" height="46" rx="8" fill="none" stroke="var(--op-reset)" stroke-width="2"/><text x="625" y="320" text-anchor="middle">textual conflict</text><text x="625" y="336" text-anchor="middle" font-size="11" fill="var(--muted)">nothing landed; markers returned</text>
+        <rect x="530" y="440" width="190" height="40" rx="8" fill="var(--soft)" stroke="currentColor" stroke-opacity=".5"/><text x="625" y="465" text-anchor="middle" font-weight="600">landed</text>
+        <line x1="625" y1="116" x2="625" y2="136" stroke="currentColor" stroke-opacity=".6" marker-end="url(#a3)"/>
+        <line x1="625" y1="180" x2="625" y2="200" stroke="currentColor" stroke-opacity=".6" marker-end="url(#a3)"/>
+        <!-- server -->
+        <rect x="750" y="76" width="260" height="410" rx="12" fill="none" stroke="var(--graft)" stroke-opacity=".6" stroke-dasharray="6 4"/>
+        <text x="860" y="98" text-anchor="middle" font-size="11.5" fill="var(--graft)" font-weight="600">inside the server, in memory</text>
+        <rect x="770" y="116" width="180" height="40" rx="8" fill="none" stroke="currentColor" stroke-opacity=".5"/><text x="860" y="141" text-anchor="middle">write changeset (draft)</text>
+        <rect x="770" y="184" width="180" height="40" rx="8" fill="none" stroke="currentColor" stroke-opacity=".5"/><text x="860" y="209" text-anchor="middle">branch head == C ?</text>
+        <rect x="770" y="252" width="180" height="52" rx="8" fill="none" stroke="currentColor" stroke-opacity=".5"/><text x="860" y="274" text-anchor="middle">3-way merge per file</text><text x="860" y="292" text-anchor="middle" font-size="11" fill="var(--muted)">base C · head · change</text>
+        <rect x="770" y="336" width="180" height="52" rx="8" fill="none" stroke="var(--graft)" stroke-width="2"/><text x="860" y="358" text-anchor="middle" font-weight="600">compare-and-swap ref</text><text x="860" y="376" text-anchor="middle" font-size="11" fill="var(--muted)">fast-forward or rebased copy</text>
+        <line x1="720" y1="224" x2="766" y2="140" stroke="var(--graft)" stroke-width="1.6" marker-end="url(#a3)" style="color:var(--graft)"/>
+        <text x="732" y="174" font-size="11" fill="var(--graft)">1 call</text>
+        <line x1="860" y1="156" x2="860" y2="180" stroke="currentColor" stroke-opacity=".6" marker-end="url(#a3)"/>
+        <line x1="860" y1="224" x2="860" y2="248" stroke="currentColor" stroke-opacity=".6" marker-end="url(#a3)"/>
+        <text x="867" y="241" font-size="11" fill="var(--muted)">no: rebase</text>
+        <path d="M950 204 C 986 204, 986 330, 940 334" fill="none" stroke="currentColor" stroke-opacity=".6" marker-end="url(#a3)"/>
+        <text x="996" y="272" font-size="11" fill="var(--muted)" text-anchor="middle">yes</text>
+        <line x1="860" y1="304" x2="860" y2="332" stroke="currentColor" stroke-opacity=".6" marker-end="url(#a3)"/>
+        <text x="867" y="323" font-size="11" fill="var(--muted)">clean</text>
+        <path d="M950 352 C 994 344, 994 384, 954 378" fill="none" stroke="var(--graft)" stroke-dasharray="3 3" marker-end="url(#a3)" style="color:var(--graft)"/>
+        <text x="860" y="412" text-anchor="middle" font-size="11" fill="var(--graft)">lost the race? rebase onto the</text>
+        <text x="860" y="427" text-anchor="middle" font-size="11" fill="var(--graft)">new head and swap again</text>
+        <path d="M770 286 C 748 290, 742 318, 724 320" fill="none" stroke="var(--op-reset)" marker-end="url(#a3)" style="color:var(--op-reset)"/>
+        <text x="745" y="272" font-size="11" fill="var(--op-reset)" text-anchor="end">conflict</text>
+        <line x1="770" y1="370" x2="724" y2="452" stroke="var(--graft)" stroke-width="1.6" marker-end="url(#a3)" style="color:var(--graft)"/>
+        <text x="742" y="424" font-size="11" fill="var(--graft)" text-anchor="end">swapped</text>
+        <path d="M530 323 C 504 323, 504 96, 526 96" fill="none" stroke="var(--op-reset)" stroke-dasharray="5 3" marker-end="url(#a3)" style="color:var(--op-reset)"/>
+        <text x="498" y="210" font-size="11" fill="var(--op-reset)" text-anchor="middle" transform="rotate(-90 498 210)">re-read, retry</text>
+      </g>
+    </svg>
+    </div>
+    <figcaption><b>Where the retry happens is the whole difference.</b> The dotted blue loop on the right (a lost compare-and-swap means rebase onto the new head and swap again) never leaves the server. The orange loop on the left is paid by the agent, in processes and round trips, every time another agent landed first.</figcaption>
+  </figure>
+</section>
+
+<section id="workspaces">
+  <h2>Workspaces for agents that need files</h2>
+  <div class="col">
+    <p>Agents that run tests need real files. <code>graft clone --sparse src/</code> asks the server for the file list under the paths it needs, fetches only the blobs the machine's cache is missing, and copies them into place with copy-on-write clones where the filesystem supports it. <code>graft commit</code> sends small changes inline with the commit request. After a fast-forward there is nothing to fetch; after a rebase the server returns the list of paths that differ, and only those are updated.</p>
+  </div>
+  <figure>
+    <div class="scroll">
+    <svg class="diagram" viewBox="0 0 980 270" role="img" aria-label="The server sends immutable blobs to a node-wide cache, which materializes files into several sparse workspaces with copy-on-write clones. Commits travel from a workspace to the server with content inline; after a rebase only the changed paths come back.">
+      <defs><marker id="a4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker></defs>
+      <g font-family="Inter, system-ui, sans-serif" font-size="12.5" fill="currentColor">
+        <rect x="20" y="70" width="190" height="120" rx="12" fill="none" stroke="currentColor" stroke-width="1.5"/>
+        <text x="115" y="104" text-anchor="middle" font-weight="700">graft server</text>
+        <text x="115" y="128" text-anchor="middle" fill="var(--muted)" font-size="11.5">manifest(prefix)</text>
+        <text x="115" y="146" text-anchor="middle" fill="var(--muted)" font-size="11.5">blobs/get (immutable)</text>
+        <text x="115" y="164" text-anchor="middle" fill="var(--muted)" font-size="11.5">diff paths-only</text>
+        <rect x="370" y="90" width="190" height="80" rx="10" fill="none" stroke="currentColor" stroke-dasharray="5 3" stroke-opacity=".7"/>
+        <text x="465" y="122" text-anchor="middle" font-weight="600">node cache</text>
+        <text x="465" y="144" text-anchor="middle" fill="var(--muted)" font-size="11.5">shared by every workspace</text>
+        <rect x="720" y="20" width="240" height="64" rx="10" fill="none" stroke="var(--cli)" stroke-width="2"/>
+        <text x="840" y="47" text-anchor="middle" font-weight="600">workspace A</text><text x="840" y="67" text-anchor="middle" fill="var(--muted)" font-size="11.5">--sparse src/</text>
+        <rect x="720" y="98" width="240" height="64" rx="10" fill="none" stroke="var(--cli)" stroke-width="2"/>
+        <text x="840" y="125" text-anchor="middle" font-weight="600">workspace B</text><text x="840" y="145" text-anchor="middle" fill="var(--muted)" font-size="11.5">--sparse docs/ tests/</text>
+        <rect x="720" y="176" width="240" height="64" rx="10" fill="none" stroke="var(--cli)" stroke-width="2"/>
+        <text x="840" y="203" text-anchor="middle" font-weight="600">workspace C</text><text x="840" y="223" text-anchor="middle" fill="var(--muted)" font-size="11.5">full checkout</text>
+        <line x1="210" y1="120" x2="366" y2="120" stroke="currentColor" stroke-opacity=".7" marker-end="url(#a4)"/>
+        <text x="288" y="110" text-anchor="middle" font-size="11.5" fill="var(--muted)">missing blobs only</text>
+        <line x1="560" y1="118" x2="716" y2="52" stroke="currentColor" stroke-opacity=".7" marker-end="url(#a4)"/>
+        <line x1="560" y1="130" x2="716" y2="130" stroke="currentColor" stroke-opacity=".7" marker-end="url(#a4)"/>
+        <line x1="560" y1="142" x2="716" y2="208" stroke="currentColor" stroke-opacity=".7" marker-end="url(#a4)"/>
+        <text x="638" y="112" text-anchor="middle" font-size="11.5" fill="var(--muted)">CoW clone</text>
+        <path d="M720 232 C 500 290, 260 290, 120 194" fill="none" stroke="var(--cli)" stroke-width="1.6" marker-end="url(#a4)" style="color:var(--cli)"/>
+        <text x="420" y="262" text-anchor="middle" font-size="11.5" fill="var(--cli)" font-weight="600">graft commit: content inline, lands in one call</text>
+      </g>
+    </svg>
+    </div>
+    <figcaption><b>Data moves once per machine.</b> Three workspaces of the same repository fetch each blob once. A sparse workspace never asks for paths outside its list; <code>graft add-sparse</code> pulls more later. Committing a new file that already exists upstream outside the sparse list is refused (one of the bug-scan fixes).</figcaption>
+  </figure>
+</section>
+
+<section id="experiment">
+  <h2>The experiment</h2>
+  <div class="col">
+    <p>Every agent owns one page of a small hash-routed web app, the Field Guide, and lands three changes in order. The first creates its page module; the other two touch files that every agent edits. Two of those shared files take insertions at sorted positions, so concurrent edits usually land on different lines. The other two take everyone's additions at the same spot, so they produce real textual conflicts in both systems.</p>
+  </div>
+  <figure>
+    <div class="scroll">
+    <svg class="diagram" viewBox="0 0 980 230" role="img" aria-label="Each agent makes three commits. Step 1 creates its own page file and appends CSS at one shared spot. Step 2 inserts into sorted lists in app.js and index.html. Step 3 adds a changelog line at the top. Append spots are conflict hot spots.">
+      <g font-family="Inter, system-ui, sans-serif" font-size="12.5" fill="currentColor">
+        <text x="20" y="28" font-weight="700">step 1 · scaffold</text>
+        <text x="350" y="28" font-weight="700">step 2 · register</text>
+        <text x="680" y="28" font-weight="700">step 3 · changelog</text>
+        <rect x="20" y="44" width="290" height="62" rx="8" fill="none" stroke="currentColor" stroke-opacity=".5"/>
+        <text x="34" y="70" font-family="JetBrains Mono, monospace" font-size="12">pages/&lt;slug&gt;.js</text>
+        <text x="34" y="92" fill="var(--muted)" font-size="11.5">new file, owned by one agent: never conflicts</text>
+        <rect x="20" y="120" width="290" height="62" rx="8" fill="none" stroke="var(--op-reset)" stroke-width="2"/>
+        <text x="34" y="146" font-family="JetBrains Mono, monospace" font-size="12">styles.css</text>
+        <text x="34" y="168" fill="var(--muted)" font-size="11.5">everyone appends above /* pages:end */</text>
+        <rect x="350" y="44" width="290" height="62" rx="8" fill="none" stroke="var(--op-push)" stroke-width="2"/>
+        <text x="364" y="70" font-family="JetBrains Mono, monospace" font-size="12">app.js</text>
+        <text x="364" y="92" fill="var(--muted)" font-size="11.5">import + route, sorted: usually different lines</text>
+        <rect x="350" y="120" width="290" height="62" rx="8" fill="none" stroke="var(--op-push)" stroke-width="2"/>
+        <text x="364" y="146" font-family="JetBrains Mono, monospace" font-size="12">index.html</text>
+        <text x="364" y="168" fill="var(--muted)" font-size="11.5">nav link, sorted by label</text>
+        <rect x="680" y="44" width="290" height="62" rx="8" fill="none" stroke="var(--op-reset)" stroke-width="2"/>
+        <text x="694" y="70" font-family="JetBrains Mono, monospace" font-size="12">CHANGELOG.md</text>
+        <text x="694" y="92" fill="var(--muted)" font-size="11.5">everyone inserts under ## Unreleased</text>
+        <rect x="680" y="132" width="14" height="10" rx="2" fill="var(--op-reset)"/><text x="702" y="141" font-size="11.5" fill="var(--muted)">hot spot: same insertion point → conflicts</text>
+        <rect x="680" y="156" width="14" height="10" rx="2" fill="var(--op-push)"/><text x="702" y="165" font-size="11.5" fill="var(--muted)">shared, but usually merges cleanly</text>
+        <text x="20" y="214" fill="var(--muted)" font-size="11.5">Agents think between steps (scripted: random 0.4–1.6 s; real agents: actual model time), sync before each edit, and must land each step before starting the next.</text>
+      </g>
+    </svg>
+    </div>
+    <figcaption><b>The same workload for every backend.</b> When a step conflicts, the agent does what a careful agent would: take the latest version of the file, re-apply its own addition, and try again. At the end, every finished app is checked for lost work: <span data-k="checks"></span> checks per page (file, import, route, nav link, CSS, changelog line) and no leftover conflict markers.</figcaption>
+  </figure>
+  <div class="col">
+    <p class="note">Three backends ran the identical scripted workload: <b>graft</b> over the HTTP API (what MCP agents use), the <b>graft CLI</b> with a workspace per agent, and <b>git</b> with a clone per agent pushing to a local bare repository. Everything ran on one Mac with no network, which favors Git: a real remote adds round-trip time to every turn of its retry loop.</p>
+  </div>
+</section>
+
+<section id="results">
+  <h2>Results: scripted swarms</h2>
+  <div class="col"><p id="results-lede"></p></div>
+  <figure>
+    <div class="legend" id="legend-modes"></div>
+    <div class="grid2">
+      <div class="chart" id="ch-p50"></div>
+      <div class="chart" id="ch-p90"></div>
+    </div>
+    <figcaption><b>Time from "ready to commit" to "on main".</b> Both axes are linear, so Graft's line sits on the floor: its values are milliseconds, too small to see next to Git's seconds (hover a point for exact values). Graft over the API stays in the low milliseconds at every swarm size because a lost race costs the server one in-memory rebase. Git's median and tail both climb with every doubling of agents, because each lost race costs the agent another pull, rebase and push.</figcaption>
+  </figure>
+  <div class="grid2">
+    <figure><div class="chart" id="ch-wall"></div><figcaption><b>Wall clock to finish the whole app.</b> Includes the agents' think time (about 3 s per agent), which is the floor every backend shares.</figcaption></figure>
+    <figure><div class="chart" id="ch-vcs"></div><figcaption><b>Source-control time per agent.</b> Sum of every VCS operation an agent ran: how long it spent waiting on source control instead of working.</figcaption></figure>
+  </div>
+  <figure>
+    <div class="scroll"><table id="tbl-scale"></table></div>
+    <figcaption><b>All scripted runs.</b> Conflicts count textual conflicts the agent had to handle. Retries also include Git push rejections that rebased cleanly. "Verified" means every page was complete in the final app.</figcaption>
+  </figure>
+
+  <h3 id="timelines">What <span data-k="tlAgents"></span> agents look like, on one time axis</h3>
+  <div class="col"><p>Each row is one agent; time runs left to right and all three panels share the same scale. Gray is the agent thinking. Everything colored is time spent in source control.</p></div>
+  <figure>
+    <div class="legend">
+      <span><i style="background:var(--op-think)"></i>thinking</span>
+      <span><i style="background:var(--op-read)"></i>read / sync</span>
+      <span><i style="background:var(--op-commit)"></i>commit / land</span>
+      <span><i style="background:var(--op-push)"></i>push</span>
+      <span><i style="background:var(--op-rebase)"></i>pull --rebase</span>
+      <span><i style="background:var(--op-reset)"></i>conflict recovery</span>
+      <span><i style="background:var(--op-mark);width:2px"></i>conflict</span>
+    </div>
+    <div id="lanes"></div>
+    <figcaption><b>The colored area is the cost of coordination.</b> In the Graft API panel the commits are thin slivers between thinking blocks. In the Git panel the colored loops of push, rebase and recovery stretch out the time to finish.</figcaption>
+  </figure>
+  <h3>Where the time goes, per operation</h3>
+  <figure><div class="scroll"><table id="tbl-ops"></table></div><figcaption><b>Per-operation latency at <span data-k="tlAgents"></span> agents.</b> Medians per call and total time across the swarm.</figcaption></figure>
+</section>
+
+<section id="real-agents">
+  <h2>Results: real Claude agents</h2>
+  <div class="col"><p id="real-lede"></p></div>
+  <div class="stats" id="real-stats"></div>
+  <figure>
+    <div class="legend" id="legend-real"></div>
+    <div class="chart" id="ch-real"></div>
+    <figcaption><b>Source-control time per agent.</b> Each agent built the same page on both teams, so each row compares like with like. Measured passively: Git's built-in trace2 timing log on one team, <code>GRAFT_TRACE</code> on the other.</figcaption>
+  </figure>
+  <figure>
+    <div class="legend" id="legend-runs"></div>
+    <div class="chart" id="ch-runs"></div>
+    <figcaption><b>How long each agent took, start to finish.</b> Includes model time, reading and editing, so source control is only part of it. Same page, same model, same instructions; only the source-control loop differs.</figcaption>
+  </figure>
+  <figure>
+    <div id="real-lanes"></div>
+    <figcaption><b>Every source-control command the real agents ran.</b> Colored by operation; a gap between bars is the agent thinking, reading or editing. Failed commands are outlined.</figcaption>
+  </figure>
+  <figure><div class="scroll"><table id="tbl-real"></table></div><figcaption><b>Per-operation totals for the real teams.</b></figcaption></figure>
+</section>
+
+<section id="bugs">
+  <h2>Bug scan</h2>
+  <div class="col"><p>Before the experiment, every module was read for defects, and every CLI command and MCP tool was exercised against a live server, including the error paths. Each fix below is pinned by a regression test; the suite went from 11 to 18 tests, all passing.</p></div>
+  <figure><div class="scroll"><table id="tbl-bugs"></table></div><figcaption><b>Found and fixed.</b> Severity reflects the worst realistic outcome: high means data loss or a server outage, medium a wrong result or a crash on bad input, low a cosmetic or performance issue.</figcaption></figure>
+</section>
+
+<section id="method">
+  <h2>Method and limits</h2>
+  <div class="col">
+    <ul class="tight">
+      <li>One machine (<span data-k="host"></span>), all processes local. Git pushed to a local bare repository and Graft ran as a separate server process; neither paid network latency.</li>
+      <li>Scripted agents think for a uniformly random 0.4–1.6 s before each step. Real agents ran on Claude Haiku in two teams at the same time, so both teams saw the same machine load.</li>
+      <li>Git ran with a hermetic configuration: no global config, hooks or commit signing. The Git loop is the standard agent loop: pull --rebase before editing, push, and on rejection pull --rebase again; on a rebase conflict, take upstream and re-apply.</li>
+      <li>The Graft CLI pays roughly 100 ms of Node.js startup per command. That is most of its gap to the API path, and it widens the window in which another agent can land first.</li>
+      <li>Both systems treat two insertions at the same line as a conflict. A union merge for append-only files (Git's <code>merge=union</code>) would remove most conflicts for both, and is a natural next feature.</li>
+      <li>This is Graft, an independent implementation of ideas Anthropic published about its internal system, Scion. No Scion code or numbers are used here.</li>
+    </ul>
+    <h3>Reproduce</h3>
+<pre>npm install && npm run build && npm test
+node dist/src/swarm/dashboard.js            # live view on http://localhost:7300
+swarm/run-matrix.sh 8 16 32 48              # scripted swarms, all backends
+node dist/src/swarm/export.js               # → docs/data/results.json
+node docs/build-report.mjs                  # → docs/graft-swarm-report.html</pre>
+  </div>
+</section>
+<footer>Generated <span data-k="generated"></span> from <code>docs/data/results.json</code>. Every number on this page is computed from the run logs embedded below.</footer>
+</main>
+<div class="tip" id="tip" hidden></div>
+
+<script id="results-data" type="application/json">__RESULTS__</script>
+<script id="bugs-data" type="application/json">__BUGS__</script>
+<script>
+(() => {
+const D = JSON.parse(document.getElementById("results-data").textContent);
+const BUGS = JSON.parse(document.getElementById("bugs-data").textContent);
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const MODES = [
+  { key: "graft", name: "graft API (MCP)", color: "--graft" },
+  { key: "graft-cli", name: "graft CLI", color: "--cli" },
+  { key: "git", name: "git", color: "--git" },
+];
+const fmt = (ms) => ms == null ? "–" : ms < 1 ? "<1 ms" : ms < 1000 ? `${Math.round(ms)} ms` : ms < 60000 ? `${(ms / 1000).toFixed(ms < 10000 ? 2 : 1)} s` : `${(ms / 60000).toFixed(1)} min`;
+const axisFmt = (v) => v === 0 ? "0" : v < 1000 ? `${v} ms` : `${(v / 1000).toLocaleString()} s`;
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const by = (mode, n) => D.scale.find((r) => r.mode === mode && r.agents === n);
+const agentsList = [...new Set(D.scale.map((r) => r.agents))].sort((a, b) => a - b);
+const maxN = agentsList[agentsList.length - 1];
+const tip = document.getElementById("tip");
+function showTip(e, html) { tip.innerHTML = html; tip.hidden = false; const r = tip.getBoundingClientRect(); let x = e.clientX + 14, y = e.clientY + 14; if (x + r.width > innerWidth - 8) x = e.clientX - r.width - 14; if (y + r.height > innerHeight - 8) y = e.clientY - r.height - 14; tip.style.left = x + "px"; tip.style.top = y + "px"; }
+function hideTip() { tip.hidden = true; }
+
+// ---------- key facts
+const realN = Object.values(D.real).reduce((s, t) => s + t.agents.length, 0);
+const set = (k, v) => document.querySelectorAll(`[data-k="${k}"]`).forEach((el) => (el.textContent = v));
+set("maxAgents", maxN); set("realAgents", realN || "no"); set("tlAgents", D.timelineAgents); set("checks", 6);
+set("generated", new Date(D.generatedAt).toLocaleString()); set("gen-date", ""); document.getElementById("gen-date").textContent = new Date(D.generatedAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+set("host", D.host ? `${D.host.platform}, Node ${D.host.node}` : "local");
+const gMax = by("graft", maxN), xMax = by("git", maxN), cMax = by("graft-cli", maxN);
+const allVerified = D.scale.every((r) => r.verified);
+const hero = [
+  [fmt(gMax?.landP50), `median time to land, Graft API, ${maxN} agents`],
+  [fmt(xMax?.landP50), `median time to land, Git, ${maxN} agents`],
+  [`${Math.round((xMax?.wallMs ?? 0) / (gMax?.wallMs || 1))}×`, `longer for Git to finish the app (${fmt(xMax?.wallMs)} vs ${fmt(gMax?.wallMs)})`],
+  [`${D.scale.filter((r) => r.verified).length}/${D.scale.length}`, allVerified ? "runs verified: no lost updates in any finished app" : "runs verified"],
+];
+document.getElementById("hero-stats").innerHTML = hero.map(([v, k]) => `<div class="stat"><div class="v">${v}</div><div class="k">${esc(k)}</div></div>`).join("");
+document.getElementById("results-lede").textContent =
+  `At ${maxN} agents the median change landed in ${fmt(gMax?.landP50)} through the Graft API, ${fmt(cMax?.landP50)} through the Graft CLI and ${fmt(xMax?.landP50)} through Git. ` +
+  `The slowest 10% took ${fmt(gMax?.landP90)}, ${fmt(cMax?.landP90)} and ${fmt(xMax?.landP90)}. All ${D.scale.length} finished apps passed the lost-update check.`;
+document.getElementById("legend-modes").innerHTML = MODES.map((m) => `<span><i class="line" style="background:var(${m.color})"></i>${m.name}</span>`).join("") + `<span><i class="line" style="background:var(--muted);height:2px"></i>dashed = slowest 10% (p90)</span>`;
+
+// ---------- line chart (log y)
+// Linear time axes throughout: a log axis draws 1 ms→10 ms as tall as 1 s→10 s and hides the gap
+// between Graft (milliseconds) and Git (seconds), which is the whole result.
+const niceStep = (raw) => { const p = Math.pow(10, Math.floor(Math.log10(raw))); return [1, 2, 2.5, 5, 10].map((k) => k * p).find((st) => st >= raw); };
+const timeTick = (v) => (v === 0 ? "0" : v < 1000 ? `${v} ms` : v < 120000 || v % 60000 ? `${+(v / 1000).toFixed(1)} s` : `${v / 60000} min`);
+function lineChart(el, { title, metric, unitFmt = fmt }) {
+  const W = 520, H = 300, L = 62, R = 92, T = 16, B = 40;
+  const vals = D.scale.map((r) => r[metric]).filter((v) => v > 0);
+  const yStep = niceStep(Math.max(...vals) / 4);
+  const hi = Math.ceil(Math.max(...vals) / yStep) * yStep;
+  // Linear agents axis from 0: position follows the agent count, not its place in the list.
+  const xMax = agentsList[agentsList.length - 1];
+  const xStep = [1, 2, 4, 5, 8, 10, 16, 20, 25, 32, 50, 64, 100].find((st) => st >= xMax / 7) || Math.ceil(xMax / 6);
+  const x = (n) => L + (n / xMax) * (W - L - R);
+  const y = (v) => T + (1 - v / hi) * (H - T - B);
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(title)}">`;
+  s += `<g class="grid">`;
+  for (let v = 0; v <= hi + 1e-9; v += yStep) s += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text x="${L - 8}" y="${y(v) + 4}" text-anchor="end">${timeTick(v)}</text>`;
+  s += `</g><g class="axis">`;
+  for (let n = 0; n <= xMax; n += xStep) s += `<line x1="${x(n)}" x2="${x(n)}" y1="${H - B}" y2="${H - B + 5}" stroke="var(--faint)"/><text x="${x(n)}" y="${H - B + 20}" text-anchor="middle">${n}</text>`;
+  s += `<line x1="${L}" x2="${W - R}" y1="${H - B}" y2="${H - B}" stroke="var(--faint)"/>`;
+  s += `<text x="${(L + W - R) / 2}" y="${H - 4}" text-anchor="middle">agents</text></g>`;
+  for (const m of MODES) {
+    const pts = agentsList.map((n) => [n, by(m.key, n)?.[metric]]).filter(([, v]) => v != null);
+    if (!pts.length) continue;
+    s += `<polyline fill="none" stroke="var(${m.color})" stroke-width="2" stroke-linejoin="round" stroke-dasharray="${metric === "landP90" ? "6 4" : ""}" points="${pts.map(([n, v]) => `${x(n)},${y(v)}`).join(" ")}"/>`;
+    for (const [n, v] of pts) s += `<circle cx="${x(n)}" cy="${y(v)}" r="4.5" fill="var(${m.color})" stroke="var(--surface)" stroke-width="2"/>`;
+    const [ln, lv] = pts[pts.length - 1];
+    s += `<text class="lbl" x="${x(ln) + 10}" y="${y(lv) + 4}">${unitFmt(lv)}</text>`;
+  }
+  // hover columns
+  // Hover columns centred on each measured agent count, split halfway between neighbours so they never overlap.
+  agentsList.forEach((n, i) => {
+    const left = i === 0 ? x(n) - 24 : (x(agentsList[i - 1]) + x(n)) / 2;
+    const right = i === agentsList.length - 1 ? x(n) + 24 : (x(n) + x(agentsList[i + 1])) / 2;
+    s += `<rect class="hit" data-n="${n}" x="${left}" y="${T}" width="${right - left}" height="${H - T - B}"/>`;
+  });
+  s += `</svg>`;
+  el.innerHTML = `<div class="charthead"><h4>${esc(title)}</h4></div>` + s;
+  el.querySelectorAll(".hit").forEach((h) => {
+    h.addEventListener("pointermove", (e) => { const n = +h.dataset.n; showTip(e, `<b>${n} agents</b><br>` + MODES.map((m) => `<span class="sw" style="background:var(${m.color})"></span>${m.name}: ${unitFmt(by(m.key, n)?.[metric])}`).join("<br>")); });
+    h.addEventListener("pointerleave", hideTip);
+  });
+}
+lineChart(document.getElementById("ch-p50"), { title: "Median time to land (p50)", metric: "landP50" });
+lineChart(document.getElementById("ch-p90"), { title: "Slowest 10% (p90)", metric: "landP90" });
+lineChart(document.getElementById("ch-wall"), { title: "Wall clock to finish the app", metric: "wallMs" });
+lineChart(document.getElementById("ch-vcs"), { title: "Source-control time per agent", metric: "vcsMsPerAgent" });
+
+// ---------- tables
+const modeCell = (k) => { const m = MODES.find((x) => x.key === k); return `<span class="sw" style="background:var(${m.color})"></span>${m.name}`; };
+document.getElementById("tbl-scale").innerHTML = `<thead><tr><th>backend</th><th class="num">agents</th><th class="num">commits</th><th class="num">p50</th><th class="num">p90</th><th class="num">max</th><th class="num">conflicts</th><th class="num">retries</th><th class="num">vcs / agent</th><th class="num">wall</th><th>verified</th></tr></thead><tbody>` +
+  D.scale.map((r) => `<tr><td>${modeCell(r.mode)}</td><td class="num">${r.agents}</td><td class="num">${r.landed}</td><td class="num">${fmt(r.landP50)}</td><td class="num">${fmt(r.landP90)}</td><td class="num">${fmt(r.landMax)}</td><td class="num">${r.conflicts}</td><td class="num">${r.retries}</td><td class="num">${fmt(r.vcsMsPerAgent)}</td><td class="num">${fmt(r.wallMs)}</td><td>${r.verified ? '<span class="ok">✓ complete</span>' : '<span class="bad">✗ ' + esc((r.missing || []).length) + " missing</span>"}</td></tr>`).join("") + `</tbody>`;
+document.getElementById("tbl-ops").innerHTML = `<thead><tr><th>backend</th><th>operation</th><th class="num">calls</th><th class="num">median</th><th class="num">total</th></tr></thead><tbody>` +
+  MODES.flatMap((m) => (D.opBreakdown[m.key] || []).sort((a, b) => b.total - a.total).map((o) => `<tr><td>${modeCell(m.key)}</td><td class="mono">${esc(o.op)}</td><td class="num">${o.count}</td><td class="num">${fmt(o.p50)}</td><td class="num">${fmt(o.total)}</td></tr>`)).join("") + `</tbody>`;
+
+// ---------- swimlanes (canvas, theme-aware, shared axis)
+const opVar = (op) => /clone|setup/.test(op) ? "--op-commit" : /reset|abort/.test(op) ? "--op-reset" : /rebase|pull/.test(op) ? "--op-rebase" : /push/.test(op) ? "--op-push" : /read|resolve|sync|fetch|status|diff|cat|log|show|ls|search|blame|grep|info/.test(op) ? "--op-read" : "--op-commit";
+function lanes(container, panels, maxT) {
+  container.innerHTML = panels.map((p, i) => `<div class="lanehead"><span class="sw" style="background:var(${p.color})"></span><strong>${esc(p.name)}</strong><span style="color:var(--muted)">${esc(p.sub)}</span></div><canvas class="lanes" data-i="${i}" role="img" aria-label="${esc(p.name)} timeline"></canvas>`).join("");
+  const draw = () => container.querySelectorAll("canvas").forEach((cv) => {
+    const p = panels[+cv.dataset.i];
+    const n = p.agents, laneH = n > 24 ? 6 : n > 12 ? 9 : 13, gap = 2, top = 18;
+    const dpr = devicePixelRatio || 1, W = cv.clientWidth || 900, H = top + n * (laneH + gap) + 4;
+    cv.width = W * dpr; cv.height = H * dpr; cv.style.height = H + "px";
+    const g = cv.getContext("2d"); g.scale(dpr, dpr);
+    const x = (t) => (t / maxT) * (W - 2) + 1;
+    g.fillStyle = css("--soft"); g.fillRect(0, 0, W, H);
+    g.font = "10.5px JetBrains Mono, monospace"; g.fillStyle = css("--muted");
+    const raw = maxT / 6, pw = Math.pow(10, Math.floor(Math.log10(raw))), step = [1, 2, 5, 10].map((k) => k * pw).find((s) => s >= raw);
+    for (let t = 0; t <= maxT; t += step) { g.fillStyle = css("--line"); g.fillRect(x(t), top - 3, 1, H - top); g.fillStyle = css("--muted"); g.fillText(axisFmt(t), x(t) + 3, 11); }
+    for (const [t, ms, a, kind, op, ok] of p.rows) {
+      const y = top + a * (laneH + gap);
+      if (kind === 0) { g.fillStyle = css("--op-think"); g.fillRect(x(t), y, Math.max(1, x(t + ms) - x(t)), laneH); }
+      else if (kind === 1) { g.fillStyle = css(opVar(op)); const w = Math.max(1.5, x(t + ms) - x(t)); g.fillRect(x(t), y, w, laneH); if (ok === 0) { g.strokeStyle = css("--op-reset"); g.lineWidth = 1; g.strokeRect(x(t) + .5, y + .5, Math.max(1, w - 1), laneH - 1); } }
+      else if (kind === 2) { g.fillStyle = css("--op-mark"); g.fillRect(x(t) - 1, y - 1, 2, laneH + 2); }
+    }
+  });
+  draw(); addEventListener("resize", draw); matchMedia("(prefers-color-scheme: dark)").addEventListener("change", draw);
+  new MutationObserver(draw).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+}
+const tl = MODES.map((m) => ({ m, t: D.timelines[m.key] })).filter((x) => x.t);
+const tlMax = Math.max(...tl.map(({ t }) => t.wallMs));
+lanes(document.getElementById("lanes"), tl.map(({ m, t }) => ({ name: m.name, color: m.color, sub: `${t.agents} agents · finished in ${fmt(t.wallMs)}`, agents: t.agents, rows: t.rows })), tlMax);
+
+// ---------- real agents
+const RT = [{ key: "git", name: "git team", color: "--git" }, { key: "graft", name: "graft team", color: "--graft" }].filter((t) => D.real[t.key]);
+if (RT.length === 2) {
+  const g = D.real.graft, x = D.real.git;
+  const sum = (t, k) => t.agents.reduce((s, a) => s + a[k], 0);
+  const vcsG = sum(g, "vcsMs"), vcsX = sum(x, "vcsMs");
+  const span = (t) => { const f = t.agents.map((a) => a.first).filter((v) => v != null), l = t.agents.map((a) => a.last).filter((v) => v != null); return f.length ? Math.max(...l) - Math.min(...f) : 0; };
+  document.getElementById("real-lede").textContent =
+    `${g.agents.length} Claude Haiku agents per team built the same ${g.agents.length} pages of the Field Guide at the same time, one team through Git and one through the Graft CLI. ` +
+    `Together the Git team spent ${fmt(vcsX)} inside source-control commands and the Graft team ${fmt(vcsG)}. ` +
+    `Git agents had ${sum(x, "pushRejected")} pushes rejected and ${sum(x, "conflicts")} failed pull or rebase steps (mostly conflicts, a few from pulling with uncommitted edits). ` +
+    `Graft agents had ${sum(g, "conflicts")} commits returned as conflicts, which they resolved and re-sent. Both finished apps passed the lost-work check.`;
+  document.getElementById("real-stats").innerHTML = [
+    [fmt(vcsX / x.agents.length), "source-control time per Git agent"],
+    [fmt(vcsG / g.agents.length), "source-control time per Graft agent"],
+    [`${sum(x, "ops")} / ${sum(g, "ops")}`, "commands run, Git / Graft"],
+    [`${fmt(span(x))} / ${fmt(span(g))}`, "first to last command, Git / Graft team"],
+  ].map(([v, k]) => `<div class="stat"><div class="v">${v}</div><div class="k">${esc(k)}</div></div>`).join("");
+  document.getElementById("legend-real").innerHTML = RT.map((t) => `<span><i style="background:var(${t.color})"></i>${t.name}</span>`).join("");
+  // grouped horizontal bars per agent
+  const names = g.agents.map((a) => a.agent);
+  const rowH = 30, W = 640, L = 150, R = 70, T = 6, H = T + names.length * rowH + 26;
+  const max = Math.max(...RT.flatMap((t) => D.real[t.key].agents.map((a) => a.vcsMs)));
+  const xs = (v) => L + (v / max) * (W - L - R);
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Source-control time per agent, Git versus Graft">`;
+  const raw = max / 5, pw = Math.pow(10, Math.floor(Math.log10(raw))), step = [1, 2, 5, 10].map((k) => k * pw).find((st) => st >= raw);
+  s += `<g class="grid">`; for (let v = 0; v <= max; v += step) s += `<line x1="${xs(v)}" x2="${xs(v)}" y1="${T}" y2="${H - 22}"/><text x="${xs(v)}" y="${H - 6}" text-anchor="middle">${axisFmt(v)}</text>`; s += `</g>`;
+  names.forEach((nm, i) => {
+    const y0 = T + i * rowH;
+    s += `<text x="${L - 10}" y="${y0 + 18}" text-anchor="end" style="fill:var(--ink)">${esc(nm.replace(/^agent-/, ""))}</text>`;
+    RT.forEach((t, j) => {
+      const a = D.real[t.key].agents.find((z) => z.agent === nm); if (!a) return;
+      const y = y0 + 4 + j * 11, w = Math.max(2, xs(a.vcsMs) - L);
+      s += `<rect class="bar" data-t="${t.key}" data-a="${esc(nm)}" x="${L}" y="${y}" width="${w}" height="9" rx="3" fill="var(${t.color})"/>`;
+    });
+  });
+  s += `</svg>`;
+  const el = document.getElementById("ch-real"); el.innerHTML = s;
+  el.querySelectorAll(".bar").forEach((b) => {
+    b.addEventListener("pointermove", (e) => { const a = D.real[b.dataset.t].agents.find((z) => z.agent === b.dataset.a); showTip(e, `<b>${esc(a.agent)} · ${b.dataset.t}</b><br>source control: ${fmt(a.vcsMs)}<br>commands: ${a.ops} (${a.failed} failed)<br>landed: ${a.landed}${b.dataset.t === "git" ? `<br>push rejected: ${a.pushRejected}` : ""}<br>conflicts: ${a.conflicts}`); });
+    b.addEventListener("pointerleave", hideTip);
+  });
+  const rmax = Math.max(...RT.map((t) => Math.max(...D.real[t.key].ops.map(([t0, ms]) => t0 + ms))));
+  lanes(document.getElementById("real-lanes"), RT.map((t) => ({ name: t.name, color: t.color, sub: `${D.real[t.key].agents.length} agents · ${D.real[t.key].ops.length} commands`, agents: D.real[t.key].agentNames.length, rows: D.real[t.key].ops.map(([t0, ms, a, ok, op]) => [t0, ms, a, 1, op, ok]) })), rmax);
+  document.getElementById("tbl-real").innerHTML = `<thead><tr><th>team</th><th>command</th><th class="num">runs</th><th class="num">median</th><th class="num">total</th></tr></thead><tbody>` +
+    RT.flatMap((t) => D.real[t.key].byOp.sort((a, b) => b.total - a.total).map((o) => `<tr><td><span class="sw" style="background:var(${t.color})"></span>${t.name}</td><td class="mono">${esc(o.op)}</td><td class="num">${o.count}</td><td class="num">${fmt(o.p50)}</td><td class="num">${fmt(o.total)}</td></tr>`)).join("") + `</tbody>`;
+  if (D.agentRuns) {
+    const AR = D.agentRuns;
+    const mean = (k) => AR[k].reduce((s2, r) => s2 + r[1], 0) / AR[k].length;
+    document.getElementById("legend-runs").innerHTML = RT.map((t) => `<span><i style="background:var(${t.color})"></i>${t.name} · mean ${fmt(mean(t.key))}</span>`).join("");
+    const nm2 = AR.git.map((r) => r[0]);
+    const W2 = 640, L2 = 150, R2 = 70, T2 = 6, rowH2 = 30, H2 = T2 + nm2.length * rowH2 + 26;
+    const max2 = Math.max(...AR.git.map((r) => r[1]), ...AR.graft.map((r) => r[1]));
+    const xs2 = (v) => L2 + (v / max2) * (W2 - L2 - R2);
+    let s2 = `<svg viewBox="0 0 ${W2} ${H2}" role="img" aria-label="Time each agent took to finish, Git versus Graft">`;
+    s2 += `<g class="grid">`; for (let v = 0; v <= max2; v += 20000) s2 += `<line x1="${xs2(v)}" x2="${xs2(v)}" y1="${T2}" y2="${H2 - 22}"/><text x="${xs2(v)}" y="${H2 - 6}" text-anchor="middle">${axisFmt(v)}</text>`; s2 += `</g>`;
+    nm2.forEach((nm, i) => {
+      const y0 = T2 + i * rowH2;
+      s2 += `<text x="${L2 - 10}" y="${y0 + 18}" text-anchor="end" style="fill:var(--ink)">${esc(nm)}</text>`;
+      RT.forEach((t, j) => {
+        const r = AR[t.key].find((z) => z[0] === nm); if (!r) return;
+        s2 += `<rect class="bar2" data-t="${t.key}" data-a="${esc(nm)}" x="${L2}" y="${y0 + 4 + j * 11}" width="${Math.max(2, xs2(r[1]) - L2)}" height="9" rx="3" fill="var(${t.color})"/>`;
+      });
+    });
+    s2 += `</svg>`;
+    const el2 = document.getElementById("ch-runs"); el2.innerHTML = s2;
+    el2.querySelectorAll(".bar2").forEach((b) => {
+      b.addEventListener("pointermove", (e) => { const r = AR[b.dataset.t].find((z) => z[0] === b.dataset.a); showTip(e, `<b>${esc(r[0])} · ${b.dataset.t}</b><br>finished in ${fmt(r[1])}<br>tool calls: ${r[2]}<br>tokens: ${r[3].toLocaleString()}`); });
+      b.addEventListener("pointerleave", hideTip);
+    });
+  }
+} else {
+  document.getElementById("real-lede").textContent = "No real-agent run was recorded in this dataset.";
+}
+
+// ---------- bugs
+document.getElementById("tbl-bugs").innerHTML = `<thead><tr><th>severity</th><th>area</th><th>problem</th><th>fix</th></tr></thead><tbody>` +
+  BUGS.map((b) => `<tr><td><span class="pill sev-${b.sev}">${b.sev}</span></td><td class="mono" style="white-space:nowrap">${esc(b.area)}</td><td>${esc(b.problem)}</td><td>${esc(b.fix)}</td></tr>`).join("") + `</tbody>`;
+})();
+</script>

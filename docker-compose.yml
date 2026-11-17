@@ -1,0 +1,25 @@
+services:
+  graft:
+    build: .
+    image: graft:${GRAFT_VERSION:-latest}
+    ports:
+      # Bound to loopback on the host: put a TLS reverse proxy in front for remote agents (see DEPLOY.md).
+      - "127.0.0.1:7070:7070"
+    environment:
+      # Required. Agents send it as "Authorization: Bearer <token>". Generate with: openssl rand -hex 32
+      GRAFT_TOKEN: ${GRAFT_TOKEN:?set GRAFT_TOKEN (openssl rand -hex 32)}
+      # Optional read-only token (GET requests only), e.g. for the web viewer.
+      GRAFT_READ_TOKEN: ${GRAFT_READ_TOKEN:-}
+    volumes:
+      - graft-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    restart: unless-stopped
+
+volumes:
+  graft-data:
