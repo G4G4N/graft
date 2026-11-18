@@ -6,6 +6,7 @@ import { FsBlobStore } from "../core/blobstore.js";
 import { Store } from "../core/store.js";
 import { createGraftServer } from "./http.js";
 import { VERSION } from "../version.js";
+import { loadExtensions } from "./extensions.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const dataDir = resolve(process.env.GRAFT_DATA ?? "./graft-data");
@@ -19,10 +20,12 @@ if (process.argv.includes("--version")) {
   console.log(VERSION);
   process.exit(0);
 }
-if (!loopback && !token && process.env.GRAFT_ALLOW_OPEN !== "1") {
+const extensions = await loadExtensions((process.env.GRAFT_EXTENSIONS ?? "").split(","));
+const extAuth = extensions.some((e) => typeof e.authenticate === "function");
+if (!loopback && !token && !extAuth && process.env.GRAFT_ALLOW_OPEN !== "1") {
   console.error(
     `refusing to listen on ${host} without authentication.\n` +
-      `  Set GRAFT_TOKEN (recommended), or GRAFT_ALLOW_OPEN=1 to serve an open server on a trusted network.`,
+      `  Set GRAFT_TOKEN (recommended), load an authentication extension (GRAFT_EXTENSIONS), or set GRAFT_ALLOW_OPEN=1 to serve an open server on a trusted network.`,
   );
   process.exit(2);
 }
@@ -43,6 +46,7 @@ const server = createGraftServer({
   readToken,
   allowedHosts,
   version: VERSION,
+  extensions,
   maxJsonBytes: process.env.GRAFT_MAX_JSON_BYTES ? parseInt(process.env.GRAFT_MAX_JSON_BYTES, 10) : undefined,
   maxBodyBytes: process.env.GRAFT_MAX_BLOB_BYTES ? parseInt(process.env.GRAFT_MAX_BLOB_BYTES, 10) : undefined,
   webRoot,
@@ -57,6 +61,7 @@ server.listen(port, host, () => {
     console.warn("  warning: GRAFT_READ_TOKEN is set without GRAFT_TOKEN, so every write will be rejected");
   }
   if (webRoot) console.log(`  web viewer: http://localhost:${port}/`);
+  if (extensions.length) console.log(`  extensions: ${extensions.map((e) => e.name).join(", ")}`);
 });
 
 for (const sig of ["SIGINT", "SIGTERM"] as const) {

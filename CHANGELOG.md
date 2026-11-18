@@ -7,6 +7,9 @@ API; the wire protocol and database schema have their own version numbers (see `
 
 ## [Unreleased]
 
+### Added
+- Extension API (`GRAFT_EXTENSIONS`): add-ons can authenticate callers, authorize each request by action and repository, and observe writes and denials. An authenticated identity becomes the commit author.
+
 ## [0.2.0] - 2026-11-12
 
 ### Security

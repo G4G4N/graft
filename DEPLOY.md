@@ -106,6 +106,7 @@ WantedBy=multi-user.target
 | `GRAFT_MAX_JSON_BYTES` | 16 MiB | Largest JSON request (a commit with inline content). |
 | `GRAFT_MAX_BLOB_BYTES` | 64 MiB | Largest single blob upload. |
 | `GRAFT_QUIET` | unset | `1` turns off the request log. |
+| `GRAFT_EXTENSIONS` | none | Comma-separated paths to extension modules (identity, access control, audit). See README → Extensions. |
 
 Health: `GET /api/health` (no auth) returns `{"ok": true, "version": "…"}`.
 

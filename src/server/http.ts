@@ -6,6 +6,7 @@ import { Store } from "../core/store.js";
 import { GraftError } from "../core/types.js";
 import { isHash, sha256 } from "../core/hash.js";
 import { isBinary } from "../core/diff.js";
+import type { Action, GraftEvent, GraftEventType, GraftExtension, Identity, RequestInfo } from "./extensions.js";
 
 export interface ServerOptions {
   store: Store;
@@ -26,6 +27,8 @@ export interface ServerOptions {
   allowedHosts?: string[];
   /** Server version reported in /api/version and the x-graft-version header. */
   version?: string;
+  /** Add-ons for identity, access control and events (see extensions.ts). */
+  extensions?: GraftExtension[];
   log?: (line: string) => void;
 }
 
@@ -61,6 +64,9 @@ interface Ctx {
   /** Raw binary body; requires content-type application/octet-stream. */
   binary: () => Promise<Buffer>;
   author: string;
+  identity: Identity | null;
+  /** Record a write for extensions' onEvent hooks (delivered after the handler succeeds). */
+  emit: (type: GraftEventType, repo: string | undefined, data: Record<string, unknown>) => void;
 }
 
 const MIME: Record<string, string> = {
@@ -76,7 +82,20 @@ export function createGraftServer(opts: ServerOptions): Server {
   const maxBody = opts.maxBodyBytes ?? 64 * 1024 * 1024;
   const maxJson = opts.maxJsonBytes ?? 16 * 1024 * 1024;
   const version = opts.version ?? "0.0.0";
-  const allowedHosts = (opts.allowedHosts ?? (opts.token || opts.readToken ? null : LOOPBACK_HOSTS))?.map((h) => h.toLowerCase());
+  const extensions = opts.extensions ?? [];
+  const extAuth = extensions.some((e) => typeof e.authenticate === "function");
+  // An authentication extension counts as "auth configured" for the DNS-rebinding default.
+  const allowedHosts = (opts.allowedHosts ?? (opts.token || opts.readToken || extAuth ? null : LOOPBACK_HOSTS))?.map((h) => h.toLowerCase());
+  const deliver = async (ev: GraftEvent) => {
+    for (const ext of extensions) {
+      if (!ext.onEvent) continue;
+      try {
+        await ext.onEvent(ev);
+      } catch (e: any) {
+        opts.log?.(`extension ${ext.name} onEvent failed: ${e?.message ?? e}`);
+      }
+    }
+  };
   const routes: { method: string; re: RegExp; keys: string[]; h: Handler }[] = [];
   const route = (method: string, pattern: string, h: Handler) => {
     const keys: string[] = [];
@@ -108,7 +127,9 @@ export function createGraftServer(opts: ServerOptions): Server {
   route("POST", "/api/repos", async (c) => {
     const b = await c.body();
     if (typeof b.name !== "string") throw new GraftError(400, "name must be a string");
-    return store.createRepo(b.name, typeof b.description === "string" ? b.description : "", c.author);
+    const r = store.createRepo(b.name, typeof b.description === "string" ? b.description : "", c.author);
+    c.emit("repo.created", r.name, { head: r.head });
+    return r;
   });
   route("GET", "/api/repos/:repo", (c) => store.getRepo(c.params.repo));
 
@@ -117,7 +138,9 @@ export function createGraftServer(opts: ServerOptions): Server {
     const b = await c.body();
     if (typeof b.name !== "string") throw new GraftError(400, "name must be a string");
     if (b.target !== undefined && b.target !== null && typeof b.target !== "string") throw new GraftError(400, "target must be a string or null");
-    return store.setRef(c.params.repo, b.name, b.target ?? null, b.expected);
+    const r = store.setRef(c.params.repo, b.name, b.target ?? null, b.expected);
+    c.emit("ref.updated", c.params.repo, { ref: r.name, target: r.target });
+    return r;
   });
 
   route("GET", "/api/repos/:repo/resolve", (c) => ({ changeset: store.resolve(c.params.repo, q(c, "rev")) }));
@@ -141,16 +164,20 @@ export function createGraftServer(opts: ServerOptions): Server {
       allowEmpty: !!b.allowEmpty,
     });
     const files = store.changeStatus(cs.id);
+    c.emit("changeset.created", c.params.repo, { changeset: cs.id, base: cs.parents[0] ?? null, files: files.length, message: cs.message.split("\n")[0] });
     const landTo = b.land === false ? null : (landBranch ?? "main");
     if (!landTo) return { changeset: cs, files, land: null };
     const land = store.land(c.params.repo, cs.id, landTo, { expectedHead: b.expectedHead });
+    if (land.status === "landed") c.emit("branch.landed", c.params.repo, { branch: land.branch, head: land.head, changeset: cs.id, rebased: land.rebased });
     return { changeset: cs, files, land };
   });
 
   route("POST", "/api/repos/:repo/land", async (c) => {
     const b = await c.body();
     if (typeof b.changeset !== "string") throw new GraftError(400, "changeset must be a string");
-    return store.land(c.params.repo, b.changeset, typeof b.branch === "string" ? b.branch : "main", { expectedHead: b.expectedHead });
+    const land = store.land(c.params.repo, b.changeset, typeof b.branch === "string" ? b.branch : "main", { expectedHead: b.expectedHead });
+    if (land.status === "landed") c.emit("branch.landed", c.params.repo, { branch: land.branch, head: land.head, changeset: b.changeset, rebased: land.rebased });
+    return land;
   });
 
   route("GET", "/api/repos/:repo/tree", (c) => {
@@ -290,6 +317,7 @@ export function createGraftServer(opts: ServerOptions): Server {
     const url = new URL(req.url ?? "/", "http://localhost");
     const path = url.pathname;
     for (const [k, v] of Object.entries(BASE_HEADERS)) res.setHeader(k, v);
+    let identity: Identity | null = null;
     res.setHeader("x-graft-version", version);
     try {
       // DNS rebinding: a hostile page whose domain resolves to this machine must not reach the API.
@@ -314,13 +342,43 @@ export function createGraftServer(opts: ServerOptions): Server {
           throw new GraftError(426, `client speaks protocol ${proto}; this server (v${version}) supports ${MIN_PROTOCOL_VERSION}..${PROTOCOL_VERSION}. Upgrade the older side.`);
         }
       }
-      if (opts.token || opts.readToken) {
-        const auth = req.headers.authorization?.replace(/^Bearer\s+/i, "");
-        const full = tokenOk(auth, opts.token);
-        const read = tokenOk(auth, opts.readToken) && req.method === "GET";
-        // Health and version are public: probes and `graft version` need them, and they reveal nothing else.
-        const open = path === "/api/health" || path === "/api/version";
-        if (!full && !read && !open) throw new GraftError(401, "missing or invalid bearer token");
+      // Health and version are public: probes and `graft version` need them, and they reveal nothing else.
+      const open = path === "/api/health" || path === "/api/version";
+      const repoMatch = /^\/api\/repos\/([^/]+)/.exec(path);
+      let repoName: string | undefined;
+      try {
+        repoName = repoMatch ? decodeURIComponent(repoMatch[1]) : undefined;
+      } catch {}
+      const info: RequestInfo = { method: req.method ?? "GET", path, repo: repoName, ip: req.socket.remoteAddress, headers: req.headers };
+      const action: Action = req.method === "GET" || req.method === "HEAD" ? "read" : req.method === "POST" && path === "/api/repos" ? "admin" : "write";
+      const denied = async (actor: string, reason: string) =>
+        deliver({ type: "access.denied", at: new Date().toISOString(), actor, repo: repoName, ip: info.ip, data: { action, method: info.method, path, reason } });
+      if (!open) {
+        for (const ext of extensions) {
+          if (!ext.authenticate) continue;
+          try {
+            identity = (await ext.authenticate(info)) ?? null;
+          } catch (e: any) {
+            await denied("unknown", e?.message ?? "authentication failed");
+            throw e;
+          }
+          if (identity) break;
+        }
+        if (!identity && (opts.token || opts.readToken)) {
+          const auth = req.headers.authorization?.replace(/^Bearer\s+/i, "");
+          const full = tokenOk(auth, opts.token);
+          const read = tokenOk(auth, opts.readToken) && req.method === "GET";
+          if (!full && !read) {
+            await denied("unknown", "missing or invalid bearer token");
+            throw new GraftError(401, "missing or invalid bearer token");
+          }
+        }
+        for (const ext of extensions) {
+          if (ext.authorize && !(await ext.authorize(identity, action, info))) {
+            await denied(identity?.name ?? "anonymous", `denied by ${ext.name}`);
+            throw new GraftError(403, `not allowed to ${action}${repoName ? ` in ${repoName}` : ""}`);
+          }
+        }
       }
       const m = routes.find((r) => r.method === req.method && r.re.test(path));
       if (!m) {
@@ -358,9 +416,14 @@ export function createGraftServer(opts: ServerOptions): Server {
           if (!v || typeof v !== "object" || Array.isArray(v)) throw new GraftError(400, "request body must be a JSON object");
           return v;
         },
-        author: String(req.headers["x-graft-author"] ?? "agent").slice(0, 200),
+        // An authenticated identity is authoritative; the self-declared header only applies without one.
+        author: identity ? identity.name.slice(0, 200) : String(req.headers["x-graft-author"] ?? "agent").slice(0, 200),
+        identity,
+        emit: (type, repo, data) => events.push({ type, at: new Date().toISOString(), actor: identity?.name ?? ctx.author, repo, ip: info.ip, data }),
       };
+      const events: GraftEvent[] = [];
       const out = await m.h(ctx);
+      for (const ev of events) await deliver(ev);
       if (out !== SENT) json(res, 200, out);
       opts.log?.(`${req.method} ${path} 200 ${Date.now() - started}ms`);
     } catch (e: any) {

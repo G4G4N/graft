@@ -98,6 +98,27 @@ Change entries: `{path, content}` · `{path, contentBase64}` · `{path, blob}` �
 `{path, delete:true}` · `{path, from}` (move, optionally with `edits`/`content`).
 Revisions: branch name, changeset id or unique prefix, `rev~N`.
 
+## Extensions
+
+Add-ons plug into the server without changing core files. An extension is a module whose default export
+implements any of three hooks (see `src/server/extensions.ts`):
+
+```ts
+export default {
+  name: "my-extension",
+  authenticate(req) { /* return { name, roles } for a known caller, null to defer */ },
+  authorize(identity, action, req) { /* action: "read" | "write" | "admin"; return false to deny */ },
+  onEvent(event) { /* repo.created, changeset.created, branch.landed, ref.updated, access.denied */ },
+};
+```
+
+```bash
+GRAFT_EXTENSIONS=./my-extension.js npm start
+```
+
+When an extension authenticates a caller, that identity is recorded as the commit author and the
+self-declared `x-graft-author` header is ignored.
+
 ## Configuration
 
 | Env | Default | |
